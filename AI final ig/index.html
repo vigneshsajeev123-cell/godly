@@ -1,0 +1,2343 @@
+<!doctype html>
+<html lang="en" class="theme-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Academic Scheduling | Weekly timetable planner</title>
+    <meta name="description" content="Plan weekly university timetables, balance room and faculty availability, and review schedule conflicts." />
+    <meta property="og:title" content="Academic Scheduling" />
+    <meta property="og:description" content="A clear workspace for building and reviewing weekly university timetables." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              zinc: {
+                800: '#27272a',
+                850: '#1f1f23',
+                900: '#18181b',
+                950: '#09090b',
+              },
+              purple: {
+                400: '#c084fc',
+                500: '#a855f7',
+                600: '#9333ea',
+                700: '#7e22ce',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+              mono: ['JetBrains Mono', 'Fira Code', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* --- Minimalist 80% Black with 20% Violet Accents (Frosted Glass) --- */
+      body {
+        background-color: #070709;
+        color: #f4f4f5;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Subtle Violet Ambient Glow for Frosted Glass Refraction */
+      body::before {
+        content: '';
+        position: fixed;
+        top: -10%;
+        left: 20%;
+        width: 550px;
+        height: 550px;
+        background: radial-gradient(circle, rgba(168, 85, 247, 0.07) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      body::after {
+        content: '';
+        position: fixed;
+        bottom: -15%;
+        right: 15%;
+        width: 650px;
+        height: 650px;
+        background: radial-gradient(circle, rgba(147, 51, 234, 0.055) 0%, transparent 75%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      #app {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* --- Frosted Glass Aesthetic for All Tiles --- */
+      /* Main Panels & Card Tiles */
+      .bg-\[\#18181b\],
+      .bg-\[\#1e1e24\],
+      .bg-\[\#111117\],
+      .bg-\[\#0c0c12\],
+      .bg-\[\#101016\],
+      .bg-\[\#18181b\]\/80 {
+        background: rgba(18, 18, 24, 0.72) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.06) !important;
+      }
+
+      /* Secondary Wells, Inputs & Inner Tiles */
+      #working-days-container label,
+      #audit-checklist > div,
+      #main-nav-tabs,
+      #view-mode-tabs,
+      #view-mode-tabs-fullscreen,
+      .bg-\[\#09090b\] {
+        background: rgba(9, 9, 13, 0.62) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-color: rgba(255, 255, 255, 0.07) !important;
+      }
+
+      /* Custom Scrollbars */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(9, 9, 11, 0.5);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(39, 39, 42, 0.7);
+        border-radius: 9999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(63, 63, 70, 0.9);
+      }
+
+      /* --- Timetable Matrix Grid (Frosted Glass Table) --- */
+      #timetable-matrix-wrapper table,
+      #full-timetable-matrix-wrapper table {
+        background: rgba(8, 8, 12, 0.65) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border-collapse: collapse !important;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
+      }
+
+      #timetable-matrix-wrapper thead,
+      #full-timetable-matrix-wrapper thead {
+        background: rgba(16, 16, 22, 0.8) !important;
+        backdrop-filter: blur(14px) !important;
+        -webkit-backdrop-filter: blur(14px) !important;
+      }
+
+      #timetable-matrix-wrapper th,
+      #full-timetable-matrix-wrapper th {
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        color: #d4d4d8 !important;
+      }
+
+      #timetable-matrix-wrapper td,
+      #full-timetable-matrix-wrapper td {
+        border-color: rgba(255, 255, 255, 0.06) !important;
+      }
+
+      #timetable-matrix-wrapper td:hover,
+      #full-timetable-matrix-wrapper td:hover {
+        background: rgba(168, 85, 247, 0.05) !important;
+      }
+
+      /* High-Visibility Frosted Lecture Card */
+      .timetable-lecture-card {
+        backdrop-filter: blur(12px) saturate(160%) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.06) !important;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .timetable-lecture-card:hover {
+        transform: translateY(-1.5px);
+        border-color: #a855f7 !important;
+        box-shadow: 0 6px 20px -2px rgba(168, 85, 247, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.1) !important;
+      }
+
+      /* Guaranteed Visible Empty / Free Slot Box (Frosted Glass) */
+      .timetable-free-box {
+        background: rgba(9, 9, 13, 0.45) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        border: 1.5px dashed rgba(255, 255, 255, 0.1) !important;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .timetable-free-box:hover {
+        border-color: #a855f7 !important;
+        background: rgba(168, 85, 247, 0.05) !important;
+      }
+
+      /* Status Banner */
+      #status-banner:not(.hidden) {
+        animation: slideFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes slideFadeIn {
+        0% { opacity: 0; transform: translateY(-6px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @media print {
+        body { background: white !important; color: black !important; }
+        body::before, body::after { display: none !important; }
+        .no-print { display: none !important; }
+        .print-matrix { width: 100% !important; border-collapse: collapse !important; }
+        .print-matrix th, .print-matrix td { border: 1px solid #ccc !important; color: black !important; }
+      }
+    </style>
+    <style>
+      /* Charcoal surfaces keep the schedule quiet; green marks active choices. */
+      :root {
+        color-scheme: dark;
+        --page: #0b0e0c;
+        --surface: #121714;
+        --surface-soft: #181f1a;
+        --ink: #e7eee8;
+        --muted: #9ba89e;
+        --line: #29342d;
+        --accent: #8cc7a1;
+        --accent-soft: #18271d;
+        --accent-line: #365541;
+      }
+
+      .theme-light {
+        color-scheme: light;
+        --page: #f4f6f3;
+        --surface: #ffffff;
+        --surface-soft: #f7f9f7;
+        --ink: #1d2923;
+        --muted: #68766e;
+        --line: #dfe6e0;
+        --accent: #27654b;
+        --accent-soft: #eaf3ed;
+        --accent-line: #c8ddcf;
+      }
+
+      html { background: var(--page); }
+      body {
+        background: var(--page) !important;
+        color: var(--ink) !important;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        line-height: 1.5;
+      }
+      body::before, body::after { display: none; }
+      #app { min-height: 100vh; }
+      header {
+        background: var(--surface) !important;
+        border-color: var(--line) !important;
+        box-shadow: 0 1px 2px rgba(24,39,30,.04);
+        backdrop-filter: none !important;
+      }
+      header > div { max-width: 1480px; min-height: 68px; height: auto !important; gap: 20px; }
+      header > div > div:first-child { min-width: 0; }
+      header .bg-purple-500\/10 { background: var(--accent-soft) !important; }
+      main { max-width: 1480px !important; gap: 20px !important; }
+      #page-workspace { align-content: start; }
+      .workspace-intro { grid-column: 1 / -1; padding: 9px 2px 3px; }
+      .workspace-intro p { margin: 0; color: var(--muted); font-size: 14px; }
+      .workspace-intro h1 { margin: 0 0 5px; color: var(--ink); font-size: clamp(25px, 3vw, 32px); line-height: 1.2; letter-spacing: -.035em; font-weight: 650; }
+      #page-workspace > section { gap: 16px !important; }
+      #page-workspace [class*="bg-[#18181b]"],
+      #page-workspace [class*="bg-[#1e1e24]"],
+      #page-workspace [class*="bg-[#111117]"],
+      #page-workspace [class*="bg-[#0c0c12]"],
+      #page-workspace [class*="bg-[#101016]"],
+      #page-workspace [class*="bg-[#09090b]"],
+      #page-timetable-view [class*="bg-[#18181b]"],
+      #page-timetable-view [class*="bg-[#09090b]"] {
+        background-color: var(--surface) !important;
+        border-color: var(--line) !important;
+        box-shadow: 0 1px 3px rgba(24,39,30,.045) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      #page-workspace [class*="bg-[#09090b]"], #page-timetable-view [class*="bg-[#09090b]"] { background-color: var(--surface-soft) !important; }
+      [class*="text-zinc-100"], [class*="text-zinc-200"] { color: var(--ink) !important; }
+      [class*="text-zinc-300"], [class*="text-zinc-400"], [class*="text-zinc-500"] { color: var(--muted) !important; }
+      [class*="text-purple-"] { color: var(--accent) !important; }
+      [class*="border-[#27272a]"], [class*="border-[#242432]"], [class*="border-[#282836]"], [class*="border-[#292938]"], [class*="border-[#2f2f38]"] { border-color: var(--line) !important; }
+      [class*="bg-[#18181b]"], [class*="bg-[#1e1e24]"], [class*="bg-[#111117]"], [class*="bg-[#0c0c12]"], [class*="bg-[#101016]"] { background-color: var(--surface) !important; border-color: var(--line) !important; }
+      [class*="bg-[#09090b]"], [class*="bg-[#27272a]"] { background-color: var(--surface-soft) !important; }
+      [class*="bg-purple-"] { background-color: var(--accent-soft) !important; }
+      [class*="bg-[#27272a]"], [class*="bg-[#1e1e24]"], [class*="bg-[#101016]"] { background-color: var(--surface-soft) !important; }
+      [class*="border-purple-"] { border-color: var(--accent-line) !important; }
+      button {
+        font-family: inherit !important;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+      }
+      button:hover { color: var(--accent) !important; background-color: var(--surface-soft) !important; }
+      button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+        outline: 3px solid rgba(39,101,75,.22) !important;
+        outline-offset: 2px;
+      }
+      input, select, textarea { color: var(--ink) !important; border-color: var(--line) !important; }
+      input::placeholder, textarea::placeholder { color: var(--muted) !important; }
+      #main-nav-tabs, #view-mode-tabs, #view-mode-tabs-fullscreen { border-radius: 9px; }
+      #working-days-container label {
+        border-radius: 8px;
+        background: var(--surface-soft) !important;
+        border-color: var(--line) !important;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+      }
+      #working-days-container label:has(input:checked) {
+        background: var(--accent-soft) !important;
+        border-color: var(--accent-line) !important;
+      }
+      #working-days-container input:checked + span { color: var(--accent) !important; }
+      #working-days-container input:checked + span + span { background: var(--accent) !important; }
+      #working-days-container label:has(input:focus-visible) { outline: 3px solid rgba(39,101,75,.25); outline-offset: 2px; }
+      #timetable-matrix-wrapper table, #full-timetable-matrix-wrapper table {
+        background: var(--surface) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 10px;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+      }
+      #timetable-matrix-wrapper th, #full-timetable-matrix-wrapper th { background: var(--surface-soft) !important; color: var(--muted) !important; }
+      #timetable-matrix-wrapper td, #timetable-matrix-wrapper th,
+      #full-timetable-matrix-wrapper td, #full-timetable-matrix-wrapper th { border-color: var(--line) !important; }
+      .timetable-lecture-card { background: var(--accent-soft) !important; border-color: var(--accent-line) !important; box-shadow: none !important; backdrop-filter: none !important; }
+      .timetable-lecture-card { cursor: pointer; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background-color .16s ease !important; }
+      .timetable-lecture-card:hover, .timetable-lecture-card:focus-visible { transform: translateY(-2px); border-color: var(--accent) !important; box-shadow: 0 8px 22px rgba(0,0,0,.24) !important; }
+      .timetable-lecture-card:focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 2px; }
+      .timetable-lecture-card.is-highlighted { box-shadow: 0 0 0 2px var(--accent), 0 8px 22px rgba(0,0,0,.24) !important; }
+      .timetable-free-box { background: var(--surface-soft) !important; border-color: var(--line) !important; backdrop-filter: none !important; }
+      .timetable-free-box:hover { background: var(--surface) !important; border-color: var(--accent-line) !important; }
+      footer { background: transparent !important; border-color: var(--line) !important; color: var(--muted) !important; font-family: inherit !important; }
+      ::-webkit-scrollbar-track { background: var(--page); }
+      ::-webkit-scrollbar-thumb { background: var(--line); }
+      ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+      @media (max-width: 700px) {
+        header > div { padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+        header > div > div:first-child { flex-wrap: wrap; }
+        #page-workspace { padding: 18px 14px !important; }
+        .workspace-intro { padding-top: 2px; }
+      }
+      .course-dialog {
+        width: min(460px, calc(100vw - 32px));
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 0;
+        color: var(--ink);
+        background: var(--surface);
+        box-shadow: 0 24px 80px rgba(0,0,0,.45);
+      }
+      .course-dialog::backdrop { background: rgba(0,0,0,.62); backdrop-filter: blur(3px); }
+      .course-dialog[open] { animation: dialog-in .18s ease-out; }
+      @keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      .course-dialog-content { padding: 24px; }
+      .course-detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+      .course-detail-row:last-child { border-bottom: 0; }
+      .course-detail-row span:first-child { color: var(--muted); }
+      .course-detail-row span:last-child { color: var(--ink); text-align: right; font-weight: 550; }
+      @media screen {
+        body {
+          background:
+            radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
+            radial-gradient(ellipse at 92% 18%, rgba(121, 145, 128, .08), transparent 30%),
+            var(--page) !important;
+        }
+        body::before, body::after {
+          content: "";
+          display: block;
+          position: fixed;
+          z-index: 0;
+          pointer-events: none;
+          width: 420px;
+          height: 420px;
+          border-radius: 50%;
+          filter: blur(60px);
+          opacity: .12;
+        }
+        body::before { top: -260px; left: 25%; background: var(--accent); }
+        body::after { right: -300px; bottom: -230px; background: #72957a; }
+        header {
+          background: color-mix(in srgb, var(--surface) 78%, transparent) !important;
+          border-color: color-mix(in srgb, var(--line) 72%, transparent) !important;
+          box-shadow: 0 8px 30px rgba(0,0,0,.12), inset 0 -1px rgba(255,255,255,.035);
+          backdrop-filter: blur(22px) saturate(150%) !important;
+          -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
+        }
+        #page-workspace > section > div[class*="bg-[#18181b]"],
+        #page-workspace > section > div[class*="bg-[#09090b]"],
+        #page-timetable-view > div[class*="bg-[#18181b]"] {
+          background: linear-gradient(145deg,
+            color-mix(in srgb, var(--surface) 94%, white 6%),
+            color-mix(in srgb, var(--surface) 82%, transparent)) !important;
+          border-color: color-mix(in srgb, var(--line) 74%, white 9%) !important;
+          box-shadow: 0 16px 38px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.055) !important;
+          backdrop-filter: blur(18px) saturate(140%) !important;
+          -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+        }
+        #main-nav-tabs, #view-mode-tabs, #view-mode-tabs-fullscreen,
+        #working-days-container label, input, select, textarea {
+          backdrop-filter: blur(12px) saturate(135%);
+          -webkit-backdrop-filter: blur(12px) saturate(135%);
+        }
+        #working-days-container label { background: color-mix(in srgb, var(--surface-soft) 78%, transparent) !important; }
+        #working-days-container label:has(input:checked) {
+          background: linear-gradient(135deg,
+            color-mix(in srgb, var(--accent-soft) 94%, white 6%),
+            color-mix(in srgb, var(--accent-soft) 80%, transparent)) !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 4px 14px rgba(0,0,0,.12);
+        }
+        .timetable-lecture-card {
+          background: linear-gradient(145deg,
+            color-mix(in srgb, var(--accent-soft) 92%, white 8%),
+            color-mix(in srgb, var(--accent-soft) 78%, transparent)) !important;
+          border-top-color: rgba(255,255,255,.18) !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.075), 0 5px 14px rgba(0,0,0,.12) !important;
+          backdrop-filter: blur(14px) saturate(145%) !important;
+          -webkit-backdrop-filter: blur(14px) saturate(145%) !important;
+        }
+        .timetable-free-box {
+          background: color-mix(in srgb, var(--surface-soft) 68%, transparent) !important;
+          backdrop-filter: blur(10px) !important;
+          -webkit-backdrop-filter: blur(10px) !important;
+        }
+        .course-dialog {
+          background: color-mix(in srgb, var(--surface) 84%, transparent);
+          border-color: color-mix(in srgb, var(--line) 70%, white 12%);
+          backdrop-filter: blur(24px) saturate(150%);
+          -webkit-backdrop-filter: blur(24px) saturate(150%);
+        }
+        button { box-shadow: inset 0 1px 0 rgba(255,255,255,.035); }
+        button:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 5px 16px rgba(0,0,0,.14); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      }
+      @media print {
+        :root, :root.theme-light {
+          --page: #fff; --surface: #fff; --surface-soft: #f7f9f7; --ink: #111;
+          --muted: #555; --line: #ddd; --accent: #27654b; --accent-soft: #edf4ef; --accent-line: #c9ddcf;
+        }
+        body { background: #fff !important; color: #111 !important; }
+        .timetable-lecture-card { background: #edf4ef !important; }
+      }
+    </style>
+  </head>
+  <body class="bg-[#070709] text-zinc-100 min-h-screen font-sans antialiased selection:bg-purple-500/30 selection:text-purple-200">
+    <div id="app" class="flex flex-col min-h-screen">
+      <!-- Top Navigation Bar (Raycast / Supabase Engineering Style) -->
+      <header class="border-b border-[#27272a] bg-[#18181b]/80 backdrop-blur sticky top-0 z-40 no-print">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-7 h-7 rounded-md bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-sm text-zinc-100 tracking-tight">Academic Scheduling</span>
+              <span class="hidden sm:inline-block text-[11px] px-2 py-1 rounded border border-[#27272a] bg-[#09090b] text-zinc-400">Campus planner</span>
+            </div>
+
+            <!-- Page Switcher Navigation Tabs -->
+            <div class="flex items-center p-0.5 rounded-lg border border-[#27272a] bg-[#09090b] text-xs font-mono ml-1 sm:ml-4" id="main-nav-tabs">
+              <button
+                type="button"
+                id="btn-nav-workspace"
+                class="px-2.5 sm:px-3 py-1 rounded-md bg-[#1e1e24] text-zinc-100 font-medium border border-[#2f2f38] shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <span>Workspace</span>
+              </button>
+              <button
+                type="button"
+                id="btn-nav-timetable"
+                class="px-2.5 sm:px-3 py-1 rounded-md text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5"
+              >
+                <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span class="font-medium">Timetable Page</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <button id="btn-theme-toggle" type="button" class="text-xs px-2.5 py-1.5 rounded-md border border-[#27272a] bg-[#18181b] text-zinc-300" aria-label="Switch to dark mode" title="Switch to dark mode">
+              <svg id="theme-icon-sun" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+              <svg id="theme-icon-moon" class="hidden w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
+            </button>
+            <button id="btn-load-sample-top" type="button" class="text-xs font-mono px-2.5 py-1.5 rounded-md border border-[#27272a] bg-[#18181b] text-zinc-300 hover:bg-[#27272a] hover:text-white transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span>Load Sample CSV</span>
+            </button>
+
+            <button id="btn-export-csv" type="button" class="text-xs font-mono px-2.5 py-1.5 rounded-md border border-[#27272a] bg-[#18181b] text-zinc-300 hover:bg-[#27272a] hover:text-white transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Export CSV</span>
+            </button>
+
+            <button id="btn-print" type="button" class="text-xs font-mono px-2.5 py-1.5 rounded-md border border-[#27272a] bg-[#18181b] text-zinc-300 hover:bg-[#27272a] hover:text-white transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              <span>Print</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Layout: 2 Columns (35% Left / 65% Right) -->
+      <main id="page-workspace" class="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="workspace-intro">
+          <h1>Build your teaching week</h1>
+          <p>Set campus availability, add course workloads, and review a schedule that works for everyone.</p>
+        </div>
+        
+        <!-- Left Panel: Inputs & Configuration (35% / col-span-4 or 5) -->
+        <section class="lg:col-span-4 xl:col-span-4 flex flex-col gap-5 no-print">
+          
+          <!-- Generator Configuration Card -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-5 flex flex-col gap-4 shadow-sm">
+            <div class="flex items-center justify-between pb-2 border-b border-[#27272a]">
+              <h2 class="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Campus Parameters
+              </h2>
+              <span class="text-[11px] font-mono text-zinc-500">Constraints</span>
+            </div>
+
+            <!-- Working Days Selection -->
+            <div class="space-y-2">
+              <label class="block text-xs font-medium text-zinc-300">
+                Working Days <span class="text-zinc-500 text-[11px]">(Mon–Fri default)</span>
+              </label>
+              <div class="grid grid-cols-6 gap-1.5" id="working-days-container">
+                <label class="cursor-pointer flex flex-col items-center justify-center p-2 rounded-md border border-[#27272a] bg-[#09090b] hover:border-zinc-700 transition-all select-none">
+                  <input type="checkbox" name="workday" value="Mon" checked class="sr-only peer" />
+                  <span class="text-xs font-mono text-zinc-400 peer-checked:text-purple-400 font-medium">Mon</span>
+                  <span class="w-1.5 h-1.5 rounded-full mt-1 bg-transparent peer-checked:bg-purple-400 transition-colors"></span>
+                </label>
+                <label class="cursor-pointer flex flex-col items-center justify-center p-2 rounded-md border border-[#27272a] bg-[#09090b] hover:border-zinc-700 transition-all select-none">
+                  <input type="checkbox" name="workday" value="Tue" checked class="sr-only peer" />
+                  <span class="text-xs font-mono text-zinc-400 peer-checked:text-purple-400 font-medium">Tue</span>
+                  <span class="w-1.5 h-1.5 rounded-full mt-1 bg-transparent peer-checked:bg-purple-400 transition-colors"></span>
+                </label>
+                <label class="cursor-pointer flex flex-col items-center justify-center p-2 rounded-md border border-[#27272a] bg-[#09090b] hover:border-zinc-700 transition-all select-none">
+                  <input type="checkbox" name="workday" value="Wed" checked class="sr-only peer" />
+                  <span class="text-xs font-mono text-zinc-400 peer-checked:text-purple-400 font-medium">Wed</span>
+                  <span class="w-1.5 h-1.5 rounded-full mt-1 bg-transparent peer-checked:bg-purple-400 transition-colors"></span>
+                </label>
+                <label class="cursor-pointer flex flex-col items-center justify-center p-2 rounded-md border border-[#27272a] bg-[#09090b] hover:border-zinc-700 transition-all select-none">
+                  <input type="checkbox" name="workday" value="Thu" checked class="sr-only peer" />
+                  <span class="text-xs font-mono text-zinc-400 peer-checked:text-purple-400 font-medium">Thu</span>
+                  <span class="w-1.5 h-1.5 rounded-full mt-1 bg-transparent peer-checked:bg-purple-400 transition-colors"></span>
+                </label>
+                <label class="cursor-pointer flex flex-col items-center justify-center p-2 rounded-md border border-[#27272a] bg-[#09090b] hover:border-zinc-700 transition-all select-none">
+                  <input type="checkbox" name="workday" value="Fri" checked class="sr-only peer" />
+                  <span class="text-xs font-mono text-zinc-400 peer-checked:text-purple-400 font-medium">Fri</span>
+                  <span class="w-1.5 h-1.5 rounded-full mt-1 bg-transparent peer-checked:bg-purple-400 transition-colors"></span>
+                </label>
+                <label class="cursor-pointer flex flex-col items-center justify-center p-2 rounded-md border border-[#27272a] bg-[#09090b] hover:border-zinc-700 transition-all select-none">
+                  <input type="checkbox" name="workday" value="Sat" class="sr-only peer" />
+                  <span class="text-xs font-mono text-zinc-400 peer-checked:text-purple-400 font-medium">Sat</span>
+                  <span class="w-1.5 h-1.5 rounded-full mt-1 bg-transparent peer-checked:bg-purple-400 transition-colors"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Slots per Day & Time Settings -->
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label for="slots-per-day" class="block text-xs font-medium text-zinc-300 mb-1">
+                  Slots / Day
+                </label>
+                <input
+                  type="number"
+                  id="slots-per-day"
+                  min="3"
+                  max="10"
+                  value="6"
+                  class="w-full bg-[#09090b] border border-[#27272a] rounded-md px-3 py-1.5 text-sm font-mono text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label for="slot-duration" class="block text-xs font-medium text-zinc-300 mb-1">
+                  Slot duration
+                </label>
+                <select
+                  id="slot-duration"
+                  class="w-full bg-[#09090b] border border-[#27272a] rounded-md px-2 py-1.5 text-sm font-mono text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-colors"
+                >
+                  <option value="30">30 min</option>
+                  <option value="45">45 min</option>
+                  <option value="50">50 min</option>
+                  <option value="60" selected>60 min</option>
+                  <option value="75">75 min</option>
+                  <option value="90">90 min</option>
+                </select>
+              </div>
+              <div>
+                <label for="start-time" class="block text-xs font-medium text-zinc-300 mb-1">
+                  Start Time
+                </label>
+                <select
+                  id="start-time"
+                  class="w-full bg-[#09090b] border border-[#27272a] rounded-md px-3 py-1.5 text-sm font-mono text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-colors"
+                >
+                  <option value="8">08:00 AM</option>
+                  <option value="9" selected>09:00 AM</option>
+                  <option value="10">10:00 AM</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Rooms Configuration -->
+            <div class="space-y-3">
+              <div>
+                <label for="theory-rooms" class="block text-xs font-medium text-zinc-300 mb-1 flex items-center justify-between">
+                  <span>Theory Rooms</span>
+                  <span id="theory-rooms-count" class="text-[11px] font-mono text-zinc-500">4 rooms</span>
+                </label>
+                <input
+                  type="text"
+                  id="theory-rooms"
+                  value="TR-101, TR-102, TR-103, TR-104"
+                  placeholder="TR-101, TR-102, TR-103"
+                  class="w-full bg-[#09090b] border border-[#27272a] rounded-md px-3 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label for="lab-rooms" class="block text-xs font-medium text-zinc-300 mb-1 flex items-center justify-between">
+                  <span>Lab Rooms (Strict Assignment)</span>
+                  <span id="lab-rooms-count" class="text-[11px] font-mono text-zinc-500">2 rooms</span>
+                </label>
+                <input
+                  type="text"
+                  id="lab-rooms"
+                  value="LAB-A, LAB-B, CS-LAB"
+                  placeholder="LAB-A, LAB-B"
+                  class="w-full bg-[#09090b] border border-[#27272a] rounded-md px-3 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Workload CSV Upload & Management Card -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-5 flex flex-col gap-4 shadow-sm">
+            <div class="flex items-center justify-between pb-2 border-b border-[#27272a]">
+              <h2 class="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Workload Input
+              </h2>
+              <span id="workload-summary-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-[#09090b] text-purple-400 border border-purple-500/20">
+                16 Courses • 48 Hours
+              </span>
+            </div>
+
+            <!-- Upload drag/drop box -->
+            <div>
+              <label for="csv-file-input" class="border border-dashed border-[#27272a] hover:border-purple-500/50 hover:bg-[#09090b]/80 transition-all rounded-lg p-3 text-center cursor-pointer block group">
+                <input type="file" id="csv-file-input" accept=".csv,text/csv" class="hidden" />
+                <div class="flex flex-col items-center justify-center gap-1.5">
+                  <svg class="w-5 h-5 text-zinc-500 group-hover:text-purple-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p class="text-xs text-zinc-300 font-medium">Click or drag CSV file to upload</p>
+                  <p class="text-[11px] font-mono text-zinc-500">Batch, Subject, Faculty_Name, Is_Lab, Weekly_Hours</p>
+                </div>
+              </label>
+            </div>
+
+            <!-- Quick Action buttons: Sample Data & View Raw CSV -->
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                id="btn-load-sample"
+                class="flex-1 text-xs font-mono py-1.5 px-3 rounded-md border border-[#27272a] bg-[#09090b] text-zinc-300 hover:text-white hover:bg-[#27272a] transition-colors flex items-center justify-center gap-1.5"
+              >
+                <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Load Sample Data
+              </button>
+
+              <button
+                type="button"
+                id="btn-toggle-editor"
+                class="text-xs font-mono py-1.5 px-3 rounded-md border border-[#27272a] bg-[#09090b] text-zinc-300 hover:text-white hover:bg-[#27272a] transition-colors flex items-center gap-1.5"
+              >
+                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span>Edit CSV</span>
+              </button>
+            </div>
+
+            <!-- Expandable Raw CSV Textarea (hidden by default) -->
+            <div id="csv-editor-container" class="hidden flex-col gap-2 pt-2 border-t border-[#27272a]">
+              <div class="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                <span>Raw CSV Content:</span>
+                <span class="text-zinc-500">Auto-validates on change</span>
+              </div>
+              <textarea
+                id="raw-csv-textarea"
+                rows="7"
+                class="w-full bg-[#09090b] border border-[#27272a] rounded-md p-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 leading-relaxed resize-y"
+                placeholder="Batch,Subject,Faculty_Name,Is_Lab,Weekly_Hours..."
+              ></textarea>
+              <div class="flex justify-end gap-2">
+                <button
+                  type="button"
+                  id="btn-apply-csv"
+                  class="text-xs font-mono px-3 py-1 rounded bg-[#27272a] text-zinc-200 hover:text-white hover:bg-[#3f3f46] transition-colors"
+                >
+                  Apply Changes
+                </button>
+              </div>
+            </div>
+
+            <!-- Course Preview Micro Table -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs text-zinc-400">
+                <span>Loaded Courses Preview</span>
+                <span id="course-count-label" class="text-[11px] font-mono text-zinc-500">16 items</span>
+              </div>
+              <div class="max-h-48 overflow-y-auto rounded border border-[#27272a] bg-[#09090b]">
+                <table class="w-full text-left text-[11px] font-mono">
+                  <thead class="bg-[#18181b] text-zinc-400 sticky top-0 border-b border-[#27272a]">
+                    <tr>
+                      <th class="p-1.5 px-2">Batch</th>
+                      <th class="p-1.5">Subject</th>
+                      <th class="p-1.5">Faculty</th>
+                      <th class="p-1.5 text-center">Hrs</th>
+                    </tr>
+                  </thead>
+                  <tbody id="workload-table-body" class="divide-y divide-[#27272a]/60 text-zinc-300">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PRIMARY ACTION BUTTON: Solid Violet Button -->
+            <label class="text-[11px] font-mono text-zinc-400">Algorithm
+              <select id="algorithm-choice" class="ml-2 bg-[#09090b] border border-[#27272a] rounded px-2 py-1.5 text-zinc-200"><option>CSP</option><option>DFS</option><option>BFS</option></select>
+            </label>
+            <button
+              id="btn-generate-schedule"
+              type="button"
+              class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+            >
+              <svg id="generate-icon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span id="generate-btn-text">Generate Schedule</span>
+            </button>
+          </div>
+
+          <!-- Soft constraints, optimizer and solver limits -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-4 flex flex-col gap-3 text-xs text-zinc-400">
+            <div class="font-mono text-zinc-300 text-[11px] uppercase tracking-wider">Soft Constraints &amp; Optimizer</div>
+            <div class="grid grid-cols-[auto_1fr_4rem] gap-x-2 gap-y-2 items-center text-[11px] font-mono">
+              <input type="checkbox" id="fh-enabled" checked class="accent-purple-500" />
+              <label for="fh-enabled" class="text-zinc-300">Avoid first-hour (slot 1) for batches</label>
+              <input type="number" id="fh-weight" min="0" step="0.5" value="3" title="weight" class="bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" />
+              <span></span><input type="text" id="fh-batches" placeholder="all, or S5 CSE-A, S3 IT-A (empty = none)" class="col-span-2 bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-zinc-200" />
+
+              <input type="checkbox" id="cl-enabled" class="accent-purple-500" />
+              <label for="cl-enabled" class="text-zinc-300">Avoid consecutive labs</label>
+              <input type="number" id="cl-weight" min="0" step="0.5" value="4" title="weight" class="bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" />
+              <span></span><input type="text" id="cl-batches" value="all" placeholder="all, or batch names" class="bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-zinc-200" />
+              <input type="number" id="cl-max" min="0" step="1" value="0" title="max labs per day (0 = off)" class="bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" />
+              <span></span><span class="col-span-2 text-[10px] text-zinc-500">Consecutive = the same batch has labs in adjacent slots on one day (one penalty per adjacent pair). Right box: also penalise labs beyond N per day (0 = off).</span>
+
+              <input type="checkbox" id="fg-enabled" checked class="accent-purple-500" />
+              <label for="fg-enabled" class="text-zinc-300">Minimise faculty gaps (idle slots between classes)</label>
+              <input type="number" id="fg-weight" min="0" step="0.5" value="1" title="weight" class="bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" />
+
+              <input type="checkbox" id="ps-enabled" checked class="accent-purple-500" />
+              <label for="ps-enabled" class="text-zinc-300">Prefer configured time slots</label>
+              <input type="number" id="ps-weight" min="0" step="0.5" value="2" title="weight" class="bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" />
+              <span></span><textarea id="ps-text" rows="2" placeholder="one per line, slots are 1-based:&#10;batch:S5 CSE-A=2,3,4&#10;faculty:Dr. Ada Lovelace=1-3&#10;subject:CS301 Data Structures=2" class="col-span-2 bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-zinc-200"></textarea>
+            </div>
+            <details class="text-[11px] font-mono">
+              <summary class="cursor-pointer text-zinc-300">Unavailability (hard) &amp; solver / optimizer settings</summary>
+              <div class="mt-2 flex flex-col gap-2">
+                <textarea id="unavail-text" rows="2" placeholder="faculty:Prof. Grace Hopper=Mon:*;Tue:1,2&#10;batch:S3 IT-A=Fri:5,6" class="bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-zinc-200"></textarea>
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="flex items-center gap-1.5"><input type="checkbox" id="opt-enabled" checked class="accent-purple-500" /> Run optimizer</label>
+                  <label class="flex items-center gap-1.5"><input type="checkbox" id="lim-mac" class="accent-purple-500" /> AC-3 during search (MAC)</label>
+                  <label>Seed <input type="number" id="opt-seed" value="12345" class="w-full bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" /></label>
+                  <label>Optimizer iterations <input type="number" id="opt-iters" value="20000" min="0" class="w-full bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" /></label>
+                  <label>Optimizer time (ms) <input type="number" id="opt-ms" value="1500" min="0" class="w-full bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" /></label>
+                  <label>Max search nodes <input type="number" id="lim-nodes" value="40000" min="1" class="w-full bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" /></label>
+                  <label>Search time limit (ms) <input type="number" id="lim-ms" value="4000" min="0" class="w-full bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" /></label>
+                  <label>Max queued BFS states <input type="number" id="lim-bfs-states" value="20000" min="1" class="w-full bg-[#09090b] border border-[#27272a] rounded px-1.5 py-1 text-zinc-200" /></label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-4 flex flex-col gap-3 text-xs text-zinc-400">
+            <div class="font-mono text-zinc-300 text-[11px] uppercase tracking-wider">Algorithm Performance Comparison</div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-[10px] font-mono"><thead class="text-zinc-400 border-b border-[#27272a]"><tr><th class="p-1.5">Metric</th><th class="p-1.5">CSP</th><th class="p-1.5">DFS</th><th class="p-1.5">BFS</th></tr></thead><tbody id="algorithm-comparison-body" class="text-zinc-300"><tr><td class="p-1.5" colspan="4">Run an algorithm to see measured results.</td></tr></tbody></table></div>
+            <div class="border-t border-[#27272a] pt-2"><div class="font-mono text-zinc-300">Best-Performing Algorithm</div><div id="algorithm-best-result" class="mt-1 text-zinc-400">No valid complete result is currently available.</div></div>
+          </div>
+
+          <!-- Active rule set (generated from scheduler.js rule objects) -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-4 flex flex-col gap-2.5 text-xs text-zinc-400">
+            <div class="flex items-center justify-between font-mono text-zinc-300 text-[11px] uppercase tracking-wider">
+              <span>Active Rules</span>
+              <span id="rule-count-label" class="text-purple-400">…</span>
+            </div>
+            <ul id="active-rules-list" class="space-y-1.5 text-[11px] font-mono text-zinc-400"></ul>
+          </div>
+        </section>
+
+        <!-- Right Panel: Results & Interactive Timetable Grid (65% / col-span-8) -->
+        <section class="lg:col-span-8 xl:col-span-8 flex flex-col gap-5">
+          
+          <!-- Stat Bar: Minimal text-based metrics -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 shadow-sm">
+            <div class="flex flex-col">
+              <span class="text-[11px] font-mono text-zinc-400 uppercase tracking-wider">Execution Time</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metric-exec-time" class="text-lg font-mono font-medium text-zinc-100">0.0</span>
+                <span class="text-xs font-mono text-zinc-500">ms</span>
+              </div>
+              <span class="text-[10px] text-zinc-500">CSP Backtracking</span>
+            </div>
+
+            <div class="flex flex-col">
+              <span class="text-[11px] font-mono text-zinc-400 uppercase tracking-wider">Nodes Expanded</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metric-nodes" class="text-lg font-mono font-medium text-zinc-100">0</span>
+                <span class="text-xs font-mono text-zinc-500">states</span>
+              </div>
+              <span id="metric-backtracks" class="text-[10px] text-zinc-500">0 backtracks</span>
+            </div>
+
+            <div class="flex flex-col">
+              <span class="text-[11px] font-mono text-zinc-400 uppercase tracking-wider">Hard Constraints</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metric-constraints" class="text-lg font-mono font-medium text-purple-400">Ready</span>
+              </div>
+              <span id="metric-conflicts-detail" class="text-[10px] text-zinc-500">—</span>
+            </div>
+
+            <div class="flex flex-col">
+              <span class="text-[11px] font-mono text-zinc-400 uppercase tracking-wider">Variables Allocated</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metric-slots-assigned" class="text-lg font-mono font-medium text-zinc-100">0</span>
+                <span id="metric-slots-total" class="text-xs font-mono text-zinc-500">/ 0</span>
+              </div>
+              <span id="metric-utilization" class="text-[10px] text-zinc-500">0% capacity</span>
+            </div>
+          </div>
+
+          <!-- View Controls Bar: View mode tabs & Batch/Faculty filter -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-sm no-print">
+            <div class="flex items-center gap-3">
+              <!-- View mode selector (Batch vs Faculty vs Room vs All Batches) -->
+              <div class="flex rounded-md border border-[#27272a] p-0.5 bg-[#09090b] text-xs font-mono" id="view-mode-tabs">
+                <button type="button" data-mode="batch" class="px-2.5 py-1 rounded bg-[#27272a] text-zinc-100 font-medium transition-colors">By Batch</button>
+                <button type="button" data-mode="faculty" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors">By Faculty</button>
+                <button type="button" data-mode="room" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors">By Room</button>
+                <button type="button" data-mode="all" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors">All Batches</button>
+              </div>
+
+              <!-- Entity Selector Dropdown (Batch Selector / Faculty Selector) -->
+              <div class="flex items-center gap-2">
+                <label for="entity-selector" class="text-xs font-mono text-zinc-400 hidden sm:inline" id="entity-selector-label">Batch:</label>
+                <select
+                  id="entity-selector"
+                  class="bg-[#09090b] border border-[#27272a] rounded-md px-3 py-1 text-xs font-mono text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <!-- Populated dynamically e.g. S5 CSE-A, S5 CSE-B -->
+                </select>
+              </div>
+            </div>
+
+            <!-- Search / Highlight filter -->
+            <div class="flex items-center gap-2">
+              <div class="relative">
+                <input
+                  type="text"
+                  id="search-filter"
+                  placeholder="Highlight subject / room..."
+                  class="bg-[#09090b] border border-[#27272a] rounded-md pl-7 pr-3 py-1 text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-purple-500 w-44 sm:w-56"
+                />
+                <svg class="w-3.5 h-3.5 text-zinc-500 absolute left-2 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+
+              <button
+                id="btn-expand-all"
+                type="button"
+                title="Cycle Entities"
+                class="text-xs font-mono px-2 py-1 rounded border border-[#27272a] bg-[#09090b] text-zinc-400 hover:text-zinc-200"
+              >
+                Next Batch
+              </button>
+
+              <button
+                id="btn-open-full-page"
+                type="button"
+                title="Open Dedicated Full Timetable Page"
+                class="text-xs font-mono px-2.5 py-1 rounded border border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <span class="hidden sm:inline">View Full Page</span>
+                <span class="sm:hidden">Full</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Alert / Status Toast Banner -->
+          <div id="status-banner" class="hidden p-3 rounded-lg border text-xs font-mono flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span id="status-banner-icon"></span>
+              <span id="status-banner-text"></span>
+            </div>
+            <button type="button" onclick="document.getElementById('status-banner').classList.add('hidden')" class="text-zinc-400 hover:text-white">✕</button>
+          </div>
+
+          <!-- Timetable Matrix Grid Container -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-5 shadow-sm overflow-hidden flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-[#27272a]">
+              <div>
+                <h3 id="current-view-title" class="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+                  <span>Batch Schedule: S5 CSE-A</span>
+                  <span id="current-view-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Active</span>
+                </h3>
+                <p id="current-view-subtitle" class="text-xs text-zinc-400 mt-0.5">Select a class to see its faculty, room, and time details.</p>
+              </div>
+
+              <div class="flex items-center gap-2 text-[11px] font-mono text-zinc-400">
+                <label>Schedule <select id="timetable-algorithm-choice" class="ml-1 bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-zinc-200"><option>CSP</option><option>DFS</option><option>BFS</option></select></label>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-[#27272a] border border-[#3f3f46]"></span> Theory</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-purple-500/20 border border-purple-500/40"></span> Lab (Strict)</span>
+              </div>
+            </div>
+
+            <!-- The Grid Table (Days x Slots) -->
+            <div class="overflow-x-auto">
+              <div id="timetable-matrix-wrapper" class="min-w-[680px]">
+                <!-- Matrix populated via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- CSP Search Diagnostics & Audit Checklist -->
+          <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-4 flex flex-col gap-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-mono font-medium text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Constraint Audit & Diagnostics
+              </h4>
+              <span id="audit-status" class="text-[11px] font-mono text-zinc-400 font-semibold">Not run yet</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-[11px] font-mono" id="audit-checklist">
+              <div class="p-2.5 rounded bg-[#09090b] border border-[#27272a] text-zinc-500 md:col-span-2">Not run yet — the audit appears here after a timetable is generated.</div>
+            </div>
+          </div>
+
+          <!-- Solver & Optimization Report (every number is computed) -->
+          <div id="report-panel" class="hidden bg-[#18181b] border border-[#27272a] rounded-lg p-4 flex flex-col gap-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-mono font-medium text-zinc-300 uppercase tracking-wider">Solver &amp; Optimization Report</h4>
+              <span id="report-status" class="text-[11px] font-mono font-semibold"></span>
+            </div>
+            <p id="report-reason" class="text-[11px] font-mono text-zinc-400"></p>
+            <div id="report-diagnosis-wrap" class="hidden p-2.5 rounded bg-[#09090b] border border-[#27272a]">
+              <div class="text-[10px] font-mono text-zinc-500 uppercase mb-1">Diagnosis</div>
+              <ul id="report-diagnosis" class="space-y-1"></ul>
+            </div>
+            <div id="report-search" class="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono"></div>
+
+            <div id="report-solved-wrap" class="hidden flex flex-col gap-3 text-[11px] font-mono text-zinc-300">
+              <div id="report-constraint-summary" class="p-2.5 rounded bg-[#09090b] border border-[#27272a]"></div>
+              <div id="report-hard-before-after"></div>
+
+              <div>
+                <div class="text-[10px] text-zinc-500 uppercase mb-1">Soft constraints — before vs after optimization</div>
+                <table class="w-full text-left">
+                  <thead class="text-zinc-500"><tr><th class="p-1">Rule</th><th class="p-1 text-center">Weight</th><th class="p-1 text-center">Before</th><th class="p-1 text-center">After</th><th class="p-1 text-center">Weighted</th></tr></thead>
+                  <tbody id="report-soft-body"></tbody>
+                </table>
+                <div id="report-cost" class="mt-1 text-zinc-100"></div>
+                <div id="report-gaps" class="text-zinc-400"></div>
+              </div>
+
+              <div>
+                <div class="text-[10px] text-zinc-500 uppercase mb-1">Optimizer</div>
+                <p id="report-opt-summary" class="text-zinc-400"></p>
+                <details class="mt-1">
+                  <summary id="report-adjust-count" class="cursor-pointer text-purple-300">0 adjustments</summary>
+                  <ul id="report-adjust-list" class="mt-1 max-h-56 overflow-auto pl-2"></ul>
+                </details>
+              </div>
+
+              <details>
+                <summary id="report-hours-summary" class="cursor-pointer text-zinc-300"></summary>
+                <table class="w-full text-left mt-1">
+                  <thead class="text-zinc-500"><tr><th class="p-1">Batch</th><th class="p-1">Subject</th><th class="p-1 text-center">Required</th><th class="p-1 text-center">Scheduled</th><th class="p-1 text-center">OK</th></tr></thead>
+                  <tbody id="report-hours-body"></tbody>
+                </table>
+              </details>
+            </div>
+          </div>
+
+        </section>
+      </main>
+
+      <!-- Dedicated Timetable Only Page (Full Screen / High Visibility Mode) -->
+      <main id="page-timetable-view" class="hidden flex-1 max-w-[1700px] w-full mx-auto p-4 sm:p-6 flex flex-col gap-4">
+        <!-- Top Toolbar for Full Timetable Page -->
+        <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 shadow-sm no-print">
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              id="btn-back-to-generator"
+              type="button"
+              class="text-xs font-mono px-3 py-1.5 rounded-md border border-[#27272a] bg-[#09090b] text-zinc-300 hover:text-white hover:border-purple-500/40 transition-colors flex items-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>← Generator Studio</span>
+            </button>
+
+            <!-- Mode selector tabs -->
+            <div class="flex rounded-md border border-[#27272a] p-0.5 bg-[#09090b] text-xs font-mono" id="view-mode-tabs-fullscreen">
+              <button type="button" data-mode="batch" class="px-2.5 py-1 rounded bg-[#27272a] text-zinc-100 font-medium transition-colors">By Batch</button>
+              <button type="button" data-mode="faculty" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors">By Faculty</button>
+              <button type="button" data-mode="room" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors">By Room</button>
+              <button type="button" data-mode="all" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors">All Batches</button>
+            </div>
+
+            <!-- Entity dropdown -->
+            <div class="flex items-center gap-2">
+              <label for="entity-selector-fullscreen" class="text-xs font-mono text-zinc-400 hidden sm:inline" id="entity-selector-fullscreen-label">Batch:</label>
+              <select
+                id="entity-selector-fullscreen"
+                class="bg-[#09090b] border border-[#27272a] rounded-md px-3 py-1 text-xs font-mono text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 min-w-[130px]"
+              >
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Box Scale toggle (Spacious / Fit) -->
+            <div class="flex items-center gap-1 text-xs font-mono text-zinc-400 bg-[#09090b] border border-[#27272a] p-0.5 rounded-md">
+              <button type="button" id="btn-scale-spacious" class="px-2.5 py-1 rounded bg-[#27272a] text-purple-300 font-medium" title="Spacious boxes (maximum visibility)">Spacious Boxes</button>
+              <button type="button" id="btn-scale-fit" class="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200" title="Compact fit">Compact</button>
+            </div>
+
+            <!-- Search box -->
+            <div class="relative">
+              <input
+                type="text"
+                id="search-filter-fullscreen"
+                placeholder="Highlight subject / room..."
+                class="bg-[#09090b] border border-[#27272a] rounded-md pl-7 pr-3 py-1 text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-purple-500 w-40 sm:w-52"
+              />
+              <svg class="w-3.5 h-3.5 text-zinc-500 absolute left-2 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <button id="btn-print-fullscreen" type="button" class="text-xs font-mono px-2.5 py-1 rounded-md border border-[#27272a] bg-[#18181b] text-zinc-300 hover:bg-[#27272a] hover:text-white transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              <span>Print</span>
+            </button>
+
+            <button id="btn-export-csv-fullscreen" type="button" class="text-xs font-mono px-2.5 py-1 rounded-md border border-[#27272a] bg-[#18181b] text-zinc-300 hover:bg-[#27272a] hover:text-white transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Export</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Master Fullscreen Timetable Container -->
+        <div class="bg-[#18181b] border border-[#27272a] rounded-lg p-5 sm:p-6 shadow-sm flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between pb-3 border-b border-[#27272a] gap-2">
+            <div>
+              <h2 id="current-view-title-fullscreen" class="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
+                <span>Batch Schedule: S5 CSE-A</span>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">Master Timetable View</span>
+              </h2>
+              <p id="current-view-subtitle-fullscreen" class="text-xs text-zinc-400 mt-1">Select a class to see its faculty, room, and time details.</p>
+            </div>
+
+            <div class="flex items-center gap-3 text-xs font-mono text-zinc-300">
+              <label>Schedule <select id="timetable-algorithm-choice-fullscreen" class="ml-1 bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-zinc-200"><option>CSP</option><option>DFS</option><option>BFS</option></select></label>
+              <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-[#27272a]"><span class="w-2.5 h-2.5 rounded bg-[#27272a] border border-[#3f3f46]"></span> Theory Lecture</span>
+              <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-purple-500/30 text-purple-300"><span class="w-2.5 h-2.5 rounded bg-purple-500/20 border border-purple-500/50"></span> Lab (Strict)</span>
+              <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-zinc-800 text-zinc-500"><span class="w-2.5 h-2.5 rounded border border-dashed border-zinc-700"></span> Free Box</span>
+            </div>
+          </div>
+
+          <!-- Full Screen Timetable Matrix with High Visibility -->
+          <div class="overflow-x-auto pb-4">
+            <div id="full-timetable-matrix-wrapper" class="w-full">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <dialog id="course-detail-dialog" class="course-dialog" aria-labelledby="course-detail-title">
+        <div class="course-dialog-content">
+          <div class="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-zinc-400 mb-1">Scheduled class</p>
+              <h2 id="course-detail-title" class="text-xl font-semibold text-zinc-100">Course details</h2>
+            </div>
+            <button id="btn-close-course-details" type="button" class="rounded-lg border border-[#27272a] p-2 text-zinc-300" aria-label="Close course details">✕</button>
+          </div>
+          <div class="space-y-0">
+            <div class="course-detail-row"><span>Batch</span><span id="detail-batch"></span></div>
+            <div class="course-detail-row"><span>Faculty</span><span id="detail-faculty"></span></div>
+            <div class="course-detail-row"><span>Day</span><span id="detail-day"></span></div>
+            <div class="course-detail-row"><span>Time</span><span id="detail-time"></span></div>
+            <div class="course-detail-row"><span>Room</span><span id="detail-room"></span></div>
+            <div class="course-detail-row"><span>Format</span><span id="detail-format"></span></div>
+          </div>
+          <p class="text-xs text-zinc-500 mt-5">Edit course assignments in the workload panel.</p>
+        </div>
+      </dialog>
+
+      <!-- Minimalist Footer -->
+      <footer class="border-t border-[#27272a] bg-[#18181b]/50 py-3 text-center text-xs font-mono text-zinc-500 no-print">
+        University Timetable Generator • Constraint Satisfaction Problem (CSP) • MRV & Forward Checking Pruning
+      </footer>
+    </div>
+
+    <!-- Complete Vanilla JavaScript CSP Engine & UI Controller -->
+    <script type="module">
+      // All scheduling logic lives in scheduler.js (pure, DOM-free, unit-tested in Node).
+      // The solver runs in a Web Worker (worker.js) via solverClient.js so the page never freezes.
+      import {
+        parseCSV, csvQuote, csvField, maxHoursForGrid, buildContext, buildRules, describeRules, auditSolution,
+        parsePreferredSlotsText, parseUnavailabilityText, DEFAULT_RULE_CONFIG, DEFAULT_LIMITS, DEFAULT_OPTIMIZER
+      } from './scheduler.js';
+      import { runScheduler } from './solverClient.js';
+
+      (function() {
+        // --- 1. DEFAULT DATASETS ---
+        const DEFAULT_CSV = `Batch,Subject,Faculty_Name,Is_Lab,Weekly_Hours
+S5 CSE-A,CS301 Data Structures,Dr. Alan Turing,false,4
+S5 CSE-A,CS303 Operating Systems,Prof. Grace Hopper,false,4
+S5 CSE-A,CS331 OS Lab,Prof. Grace Hopper,true,2
+S5 CSE-A,MA201 Discrete Mathematics,Dr. Ada Lovelace,false,3
+S5 CSE-A,CS305 Database Systems,Prof. John von Neumann,false,3
+S5 CSE-A,CS333 DBMS Lab,Prof. John von Neumann,true,2
+S5 CSE-B,CS301 Data Structures,Dr. Alan Turing,false,4
+S5 CSE-B,CS303 Operating Systems,Dr. Donald Knuth,false,4
+S5 CSE-B,CS331 OS Lab,Dr. Donald Knuth,true,2
+S5 CSE-B,MA201 Discrete Mathematics,Dr. Ada Lovelace,false,3
+S5 CSE-B,CS307 Computer Networks,Prof. Claude Shannon,false,3
+S5 CSE-B,CS337 Networks Lab,Prof. Claude Shannon,true,2
+S3 IT-A,IT201 OOP with Java,Prof. Barbara Liskov,false,4
+S3 IT-A,IT231 Java Lab,Prof. Barbara Liskov,true,2
+S3 IT-A,MA101 Engineering Calculus,Dr. Ada Lovelace,false,3
+S3 IT-A,IT203 Digital Logic & Design,Prof. Claude Shannon,false,3`;
+
+        // --- 2. STATE ---
+        const state = {
+          workload: [],
+          workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          slotsPerDay: 6,
+          startTimeHour: 9,
+          slotDurationMinutes: 60,
+          theoryRooms: ['TR-101', 'TR-102', 'TR-103', 'TR-104'],
+          labRooms: ['LAB-A', 'LAB-B', 'CS-LAB'],
+          solution: null, // array of assigned variables { id, batch, subject, faculty, isLab, day, slot, room }
+          selectedAlgorithm: 'CSP',
+          algorithmResults: { CSP: null, DFS: null, BFS: null },
+          comparisonInputKey: null,
+          allAssignments: [], // flat list
+          metrics: {
+            executionTime: 0,
+            nodesExpanded: 0,
+            backtracks: 0,
+            status: 'Ready',
+            assignedCount: 0,
+            totalCount: 0
+          },
+          currentViewMode: 'batch', // 'batch' | 'faculty' | 'room' | 'all'
+          selectedEntity: 'S5 CSE-A',
+          searchQuery: '',
+          activePage: 'workspace', // 'workspace' | 'timetable'
+          isSpaciousScale: true,
+          result: null, // last pipeline result (plain data)
+          running: false
+        };
+
+        // --- 3. DOM ELEMENTS ---
+        const dom = {
+          pageWorkspace: document.getElementById('page-workspace'),
+          pageTimetableView: document.getElementById('page-timetable-view'),
+          btnNavWorkspace: document.getElementById('btn-nav-workspace'),
+          btnNavTimetable: document.getElementById('btn-nav-timetable'),
+          btnOpenFullPage: document.getElementById('btn-open-full-page'),
+          btnBackToGenerator: document.getElementById('btn-back-to-generator'),
+          fullTimetableMatrixWrapper: document.getElementById('full-timetable-matrix-wrapper'),
+          viewModeTabsFullscreen: document.getElementById('view-mode-tabs-fullscreen'),
+          entitySelectorFullscreen: document.getElementById('entity-selector-fullscreen'),
+          entitySelectorFullscreenLabel: document.getElementById('entity-selector-fullscreen-label'),
+          searchFilterFullscreen: document.getElementById('search-filter-fullscreen'),
+          currentViewTitleFullscreen: document.getElementById('current-view-title-fullscreen'),
+          currentViewSubtitleFullscreen: document.getElementById('current-view-subtitle-fullscreen'),
+          btnScaleSpacious: document.getElementById('btn-scale-spacious'),
+          btnScaleFit: document.getElementById('btn-scale-fit'),
+          btnPrintFullscreen: document.getElementById('btn-print-fullscreen'),
+          btnThemeToggle: document.getElementById('btn-theme-toggle'),
+          themeIconSun: document.getElementById('theme-icon-sun'),
+          themeIconMoon: document.getElementById('theme-icon-moon'),
+          courseDetailsDialog: document.getElementById('course-detail-dialog'),
+          btnCloseCourseDetails: document.getElementById('btn-close-course-details'),
+          detailTitle: document.getElementById('course-detail-title'),
+          detailBatch: document.getElementById('detail-batch'),
+          detailFaculty: document.getElementById('detail-faculty'),
+          detailDay: document.getElementById('detail-day'),
+          detailTime: document.getElementById('detail-time'),
+          detailRoom: document.getElementById('detail-room'),
+          detailFormat: document.getElementById('detail-format'),
+          btnExportCsvFullscreen: document.getElementById('btn-export-csv-fullscreen'),
+          workingDaysContainer: document.getElementById('working-days-container'),
+          slotsPerDayInput: document.getElementById('slots-per-day'),
+          slotDurationSelect: document.getElementById('slot-duration'),
+          startTimeSelect: document.getElementById('start-time'),
+          theoryRoomsInput: document.getElementById('theory-rooms'),
+          labRoomsInput: document.getElementById('lab-rooms'),
+          theoryRoomsCount: document.getElementById('theory-rooms-count'),
+          labRoomsCount: document.getElementById('lab-rooms-count'),
+          csvFileInput: document.getElementById('csv-file-input'),
+          rawCsvTextarea: document.getElementById('raw-csv-textarea'),
+          csvEditorContainer: document.getElementById('csv-editor-container'),
+          btnToggleEditor: document.getElementById('btn-toggle-editor'),
+          btnApplyCsv: document.getElementById('btn-apply-csv'),
+          btnLoadSample: document.getElementById('btn-load-sample'),
+          btnLoadSampleTop: document.getElementById('btn-load-sample-top'),
+          btnGenerateSchedule: document.getElementById('btn-generate-schedule'),
+          algorithmChoice: document.getElementById('algorithm-choice'),
+          timetableAlgorithmChoice: document.getElementById('timetable-algorithm-choice'),
+          timetableAlgorithmChoiceFullscreen: document.getElementById('timetable-algorithm-choice-fullscreen'),
+          btnExportCsv: document.getElementById('btn-export-csv'),
+          btnPrint: document.getElementById('btn-print'),
+          btnExpandAll: document.getElementById('btn-expand-all'),
+          workloadTableBody: document.getElementById('workload-table-body'),
+          workloadSummaryBadge: document.getElementById('workload-summary-badge'),
+          courseCountLabel: document.getElementById('course-count-label'),
+          metricExecTime: document.getElementById('metric-exec-time'),
+          metricNodes: document.getElementById('metric-nodes'),
+          metricBacktracks: document.getElementById('metric-backtracks'),
+          metricConstraints: document.getElementById('metric-constraints'),
+          metricConflictsDetail: document.getElementById('metric-conflicts-detail'),
+          metricSlotsAssigned: document.getElementById('metric-slots-assigned'),
+          metricSlotsTotal: document.getElementById('metric-slots-total'),
+          metricUtilization: document.getElementById('metric-utilization'),
+          viewModeTabs: document.getElementById('view-mode-tabs'),
+          entitySelector: document.getElementById('entity-selector'),
+          entitySelectorLabel: document.getElementById('entity-selector-label'),
+          searchFilter: document.getElementById('search-filter'),
+          currentViewTitle: document.getElementById('current-view-title'),
+          currentViewBadge: document.getElementById('current-view-badge'),
+          currentViewSubtitle: document.getElementById('current-view-subtitle'),
+          timetableMatrixWrapper: document.getElementById('timetable-matrix-wrapper'),
+          statusBanner: document.getElementById('status-banner'),
+          statusBannerIcon: document.getElementById('status-banner-icon'),
+          statusBannerText: document.getElementById('status-banner-text'),
+          auditStatus: document.getElementById('audit-status'),
+          auditChecklist: document.getElementById('audit-checklist')
+        };
+
+        const savedTheme = (() => {
+          try { return localStorage.getItem('academic-scheduling-theme'); }
+          catch { return null; }
+        })();
+        if (savedTheme === 'light') document.documentElement.classList.add('theme-light');
+        function syncThemeControl() {
+          const isDark = !document.documentElement.classList.contains('theme-light');
+          dom.themeIconSun.classList.toggle('hidden', isDark);
+          dom.themeIconMoon.classList.toggle('hidden', !isDark);
+          const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+          dom.btnThemeToggle.setAttribute('aria-label', label);
+          dom.btnThemeToggle.title = label;
+        }
+        syncThemeControl();
+        dom.btnThemeToggle.addEventListener('click', () => {
+          const isLight = document.documentElement.classList.toggle('theme-light');
+          try { localStorage.setItem('academic-scheduling-theme', isLight ? 'light' : 'dark'); }
+          catch { /* Theme still works when browser storage is unavailable. */ }
+          syncThemeControl();
+        });
+
+        function openAssignmentDetails(item) {
+          dom.detailTitle.textContent = item.subject;
+          dom.detailBatch.textContent = item.batch;
+          dom.detailFaculty.textContent = item.faculty;
+          dom.detailDay.textContent = item.day;
+          dom.detailTime.textContent = getSlotTimeLabel(item.slot, state.startTimeHour);
+          dom.detailRoom.textContent = item.room;
+          dom.detailFormat.textContent = item.isLab ? 'Laboratory' : 'Lecture';
+          dom.courseDetailsDialog.showModal();
+        }
+
+        dom.btnCloseCourseDetails.addEventListener('click', () => dom.courseDetailsDialog.close());
+        dom.courseDetailsDialog.addEventListener('click', (event) => {
+          if (event.target === dom.courseDetailsDialog) dom.courseDetailsDialog.close();
+        });
+
+        // --- 7. UI CONTROLLERS & RENDERERS ---
+
+        function getSlotTimeLabel(slotIndex, startHour, durationMinutes = state.slotDurationMinutes) {
+          const formatTime = (totalMinutes) => {
+            const minuteOfDay = ((totalMinutes % 1440) + 1440) % 1440;
+            const hour = Math.floor(minuteOfDay / 60);
+            const minute = minuteOfDay % 60;
+            const displayHour = hour % 12 || 12;
+            const period = hour >= 12 ? 'PM' : 'AM';
+            return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
+          };
+          const startMinutes = startHour * 60 + slotIndex * durationMinutes;
+          return `${formatTime(startMinutes)} – ${formatTime(startMinutes + durationMinutes)}`;
+        }
+
+        function renderWorkloadTable() {
+          const tbody = dom.workloadTableBody;
+          tbody.innerHTML = '';
+
+          let totalHours = 0;
+          const batches = new Set();
+
+          state.workload.forEach(item => {
+            totalHours += item.weeklyHours;
+            batches.add(item.batch);
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-[#18181b] transition-colors';
+            tr.innerHTML = `
+              <td class="p-1.5 px-2 text-zinc-300 font-medium whitespace-nowrap">${escapeHtml(item.batch)}</td>
+              <td class="p-1.5 text-zinc-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="truncate max-w-[130px]">${escapeHtml(item.subject)}</span>
+                  ${item.isLab ? '<span class="text-[9px] px-1 py-0.2 bg-purple-500/20 text-purple-400 rounded border border-purple-500/30">LAB</span>' : ''}
+                </div>
+              </td>
+              <td class="p-1.5 text-zinc-400 truncate max-w-[110px]">${escapeHtml(item.faculty)}</td>
+              <td class="p-1.5 text-center text-zinc-200 font-mono">${item.weeklyHours}h</td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+          dom.workloadSummaryBadge.textContent = `${state.workload.length} Courses • ${totalHours} Hours`;
+          dom.courseCountLabel.textContent = `${state.workload.length} items (${batches.size} batches)`;
+          dom.rawCsvTextarea.value = unparseCSV(state.workload);
+        }
+
+        function setActivePage(page) {
+          state.activePage = page;
+          if (page === 'timetable') {
+            dom.pageWorkspace.classList.add('hidden');
+            dom.pageTimetableView.classList.remove('hidden');
+
+            dom.btnNavWorkspace.className = 'px-2.5 sm:px-3 py-1 rounded-md text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5';
+            dom.btnNavTimetable.className = 'px-2.5 sm:px-3 py-1 rounded-md bg-[#1e1e24] text-zinc-100 font-medium border border-[#2f2f38] shadow-sm transition-all flex items-center gap-1.5';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } else {
+            dom.pageTimetableView.classList.add('hidden');
+            dom.pageWorkspace.classList.remove('hidden');
+
+            dom.btnNavWorkspace.className = 'px-2.5 sm:px-3 py-1 rounded-md bg-[#1e1e24] text-zinc-100 font-medium border border-[#2f2f38] shadow-sm transition-all flex items-center gap-1.5';
+            dom.btnNavTimetable.className = 'px-2.5 sm:px-3 py-1 rounded-md text-zinc-400 hover:text-zinc-200 transition-all flex items-center gap-1.5';
+          }
+          renderTimetableMatrix();
+        }
+
+        function updateEntitySelectorOptions() {
+          const mode = state.currentViewMode;
+          const selectWorkspace = dom.entitySelector;
+          const selectFullscreen = dom.entitySelectorFullscreen;
+
+          if (mode === 'all') {
+            const labelText = 'View:';
+            if (dom.entitySelectorLabel) dom.entitySelectorLabel.textContent = labelText;
+            if (dom.entitySelectorFullscreenLabel) dom.entitySelectorFullscreenLabel.textContent = labelText;
+
+            [selectWorkspace, selectFullscreen].forEach(select => {
+              if (!select) return;
+              select.innerHTML = '<option value="all">All Batches (Showing All)</option>';
+              select.disabled = true;
+            });
+            return;
+          }
+
+          [selectWorkspace, selectFullscreen].forEach(select => {
+            if (select) select.disabled = false;
+          });
+
+          let entities = [];
+          let labelText = 'Batch:';
+          if (mode === 'batch') {
+            labelText = 'Batch:';
+            const set = new Set();
+            state.workload.forEach(w => set.add(w.batch));
+            entities = Array.from(set).sort();
+          } else if (mode === 'faculty') {
+            labelText = 'Faculty:';
+            const set = new Set();
+            state.workload.forEach(w => set.add(w.faculty));
+            entities = Array.from(set).sort();
+          } else if (mode === 'room') {
+            labelText = 'Room:';
+            entities = [...state.theoryRooms, ...state.labRooms].sort();
+          }
+
+          if (dom.entitySelectorLabel) dom.entitySelectorLabel.textContent = labelText;
+          if (dom.entitySelectorFullscreenLabel) dom.entitySelectorFullscreenLabel.textContent = labelText;
+
+          [selectWorkspace, selectFullscreen].forEach(select => {
+            if (!select) return;
+            select.innerHTML = '';
+
+            if (entities.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No entities';
+              select.appendChild(opt);
+              return;
+            }
+
+            entities.forEach(ent => {
+              const opt = document.createElement('option');
+              opt.value = ent;
+              opt.textContent = ent;
+              if (ent === state.selectedEntity) {
+                opt.selected = true;
+              }
+              select.appendChild(opt);
+            });
+          });
+
+          if (entities.length > 0 && !entities.includes(state.selectedEntity)) {
+            state.selectedEntity = entities[0];
+            if (selectWorkspace) selectWorkspace.value = entities[0];
+            if (selectFullscreen) selectFullscreen.value = entities[0];
+          }
+        }
+
+        function buildSingleMatrixTable(mode, entity, isSpacious) {
+          const days = state.workingDays;
+          const slotsCount = state.slotsPerDay;
+          const startTimeHour = state.startTimeHour;
+          const query = state.searchQuery.toLowerCase().trim();
+
+          // Build index of solution items
+          // Key: "day#slot" -> array of items matching the view mode
+          const cellMap = new Map();
+          if (state.solution) {
+            state.solution.forEach(item => {
+              let match = false;
+              if (mode === 'batch' && item.batch === entity) match = true;
+              else if (mode === 'faculty' && item.faculty === entity) match = true;
+              else if (mode === 'room' && item.room.toUpperCase() === (entity || '').toUpperCase()) match = true;
+
+              if (match) {
+                const key = `${item.day}#${item.slot}`;
+                if (!cellMap.has(key)) cellMap.set(key, []);
+                cellMap.get(key).push(item);
+              }
+            });
+          }
+
+          // Create Grid Table with Crisp Visible Borders
+          const table = document.createElement('table');
+          table.className = 'w-full border-collapse border border-[#282834] text-left text-xs font-mono print-matrix';
+
+          // Table Header: Day Column + Slots Columns
+          const thead = document.createElement('thead');
+          thead.className = 'bg-[#101016] text-zinc-400 border-b border-[#242432]';
+          const headerRow = document.createElement('tr');
+
+          // Day header cell
+          const dayTh = document.createElement('th');
+          dayTh.className = isSpacious 
+            ? 'p-3.5 border-r border-[#242432] w-28 font-bold text-zinc-200 uppercase tracking-wider text-xs bg-[#101016]'
+            : 'p-3 border-r border-[#242432] w-24 font-semibold text-zinc-300 uppercase tracking-wider text-[11px] bg-[#101016]';
+          dayTh.textContent = 'Day / Slot';
+          headerRow.appendChild(dayTh);
+
+          // Slot headers
+          for (let s = 0; s < slotsCount; s++) {
+            const th = document.createElement('th');
+            const minWClass = isSpacious ? 'min-w-[185px] p-3' : 'min-w-[130px] p-2.5';
+            th.className = `${minWClass} border-r border-[#242432] text-center`;
+            const timeLabel = getSlotTimeLabel(s, startTimeHour);
+            th.innerHTML = `
+              <div class="text-zinc-100 font-bold ${isSpacious ? 'text-sm' : 'text-xs'}">Slot ${s + 1}</div>
+              <div class="${isSpacious ? 'text-[11px]' : 'text-[10px]'} text-zinc-400 font-normal mt-0.5">${timeLabel}</div>
+            `;
+            headerRow.appendChild(th);
+          }
+          thead.appendChild(headerRow);
+          table.appendChild(thead);
+
+          // Table Body: Days (Rows) vs Slots (Columns)
+          const tbody = document.createElement('tbody');
+          tbody.className = 'divide-y divide-[#1f1f2a]';
+
+          days.forEach(day => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-[#151520]/50 transition-colors';
+
+            // Day label cell
+            const dayTd = document.createElement('td');
+            dayTd.className = isSpacious 
+              ? 'p-3.5 font-bold text-zinc-200 border-r border-[#242432] bg-[#0c0c12] text-xs align-middle'
+              : 'p-3 font-semibold text-zinc-300 border-r border-[#242432] bg-[#0c0c12]/80 text-xs align-middle';
+            dayTd.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.7)]"></span>
+                <span class="tracking-wide">${day}</span>
+              </div>
+            `;
+            tr.appendChild(dayTd);
+
+            // Slot cells: Every box is visibly delineated
+            for (let s = 0; s < slotsCount; s++) {
+              const td = document.createElement('td');
+              const cellHeight = isSpacious ? 'h-[110px] min-w-[185px]' : 'h-[94px] min-w-[130px]';
+              td.className = `p-2 border-r border-[#1f1f2a] align-top ${cellHeight} transition-colors relative`;
+
+              const key = `${day}#${s}`;
+              const items = cellMap.get(key) || [];
+              const timeLabel = getSlotTimeLabel(s, startTimeHour);
+
+              if (items.length === 0) {
+                // Guaranteed visible empty slot box - every box in the table is visible!
+                td.innerHTML = `
+                  <div class="timetable-free-box w-full h-full min-h-[86px] rounded-lg p-2 flex flex-col items-center justify-center text-center">
+                    <div class="flex items-center gap-1.5 text-zinc-400 font-mono ${isSpacious ? 'text-xs' : 'text-[11px]'} font-semibold">
+                      <span class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+                      <span>Free Slot</span>
+                    </div>
+                    <span class="text-[10px] text-zinc-500 font-mono mt-1 font-medium">Slot ${s + 1} (${timeLabel})</span>
+                    <span class="text-[9px] text-zinc-600 font-mono">No lecture assigned</span>
+                  </div>
+                `;
+              } else {
+                // One or more assignments in this slot
+                const container = document.createElement('div');
+                container.className = 'flex flex-col gap-1.5 h-full justify-between';
+
+                items.forEach(it => {
+                  const card = document.createElement('div');
+                  const isHighlighted = query && (
+                    it.subject.toLowerCase().includes(query) ||
+                    it.faculty.toLowerCase().includes(query) ||
+                    it.room.toLowerCase().includes(query) ||
+                    it.batch.toLowerCase().includes(query)
+                  );
+
+                  const borderClass = isHighlighted 
+                    ? 'border-purple-400 shadow-[0_0_14px_rgba(168,85,247,0.45)] bg-purple-500/10' 
+                    : (it.isLab ? 'border-purple-500/40 bg-purple-500/[0.08]' : 'border-[#292938] bg-[#111117]');
+
+                  card.className = `timetable-lecture-card p-2.5 rounded-lg border ${borderClass} shadow-sm transition-all flex flex-col justify-between h-full min-h-[86px] gap-1.5`;
+                  card.setAttribute('role', 'button');
+                  card.setAttribute('tabindex', '0');
+                  card.setAttribute('aria-haspopup', 'dialog');
+                  card.setAttribute('aria-label', `View ${it.subject} details for ${it.batch} on ${it.day}`);
+                  const showDetails = () => {
+                    document.querySelectorAll('.timetable-lecture-card.is-highlighted').forEach(activeCard => activeCard.classList.remove('is-highlighted'));
+                    card.classList.add('is-highlighted');
+                    openAssignmentDetails(it);
+                  };
+                  card.addEventListener('click', showDetails);
+                  card.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      showDetails();
+                    }
+                  });
+
+                  // Header title
+                  let headerText = '';
+                  if (mode !== 'batch') {
+                    headerText = `<div class="text-[10px] font-mono text-purple-400 font-bold mb-0.5 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>${escapeHtml(it.batch)}</div>`;
+                  }
+
+                  card.innerHTML = `
+                    <div>
+                      ${headerText}
+                      <div class="flex items-start justify-between gap-1.5">
+                        <span class="font-bold ${isSpacious ? 'text-xs' : 'text-[11px]'} text-zinc-100 leading-snug line-clamp-2">${escapeHtml(it.subject)}</span>
+                        ${it.isLab ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/40 font-bold shrink-0 shadow-[0_0_8px_rgba(168,85,247,0.2)]">LAB</span>' : ''}
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-zinc-400 pt-1.5 border-t border-[#23232c] gap-1">
+                      <span class="truncate text-zinc-300 font-medium flex items-center gap-1" title="${escapeHtml(it.faculty)}">
+                        <svg class="w-3 h-3 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span class="truncate max-w-[95px]">${mode === 'faculty' ? escapeHtml(it.batch) : escapeHtml(it.faculty)}</span>
+                      </span>
+                      <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#09090b] border border-[#2f2f3d] text-purple-400 font-semibold shrink-0">
+                        ${mode === 'room' ? escapeHtml(it.faculty) : escapeHtml(it.room)}
+                      </span>
+                    </div>
+                  `;
+                  container.appendChild(card);
+                });
+
+                td.appendChild(container);
+              }
+
+              tr.appendChild(td);
+            }
+
+            tbody.appendChild(tr);
+          });
+
+          table.appendChild(tbody);
+          return table;
+        }
+
+        function buildMatrixContainer(isSpacious) {
+          const mode = state.currentViewMode;
+          if (mode === 'all') {
+            const batches = Array.from(new Set(state.workload.map(w => w.batch))).sort();
+            if (batches.length === 0) {
+              const emptyDiv = document.createElement('div');
+              emptyDiv.className = 'p-6 text-center text-zinc-400 font-mono text-sm';
+              emptyDiv.textContent = 'No batch workload data found. Please load or upload courses.';
+              return emptyDiv;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex flex-col gap-8 w-full';
+
+            batches.forEach(b => {
+              const card = document.createElement('div');
+              card.className = 'flex flex-col gap-3 rounded-lg border border-[#282836] bg-[#0c0c12]/90 p-4 shadow-sm';
+
+              const batchCourses = state.workload.filter(w => w.batch === b);
+              const totalHours = batchCourses.reduce((sum, c) => sum + c.weeklyHours, 0);
+
+              card.innerHTML = `
+                <div class="flex items-center justify-between pb-2 border-b border-[#22222e]">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.6)]"></span>
+                    <h3 class="text-sm font-bold text-zinc-100 font-mono tracking-wide">Batch: ${escapeHtml(b)}</h3>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#09090b] text-purple-400 border border-purple-500/30">${batchCourses.length} Courses • ${totalHours} Hours/Week</span>
+                  </div>
+                  <span class="text-[11px] text-zinc-400 font-mono hidden sm:inline">Complete Schedule Matrix</span>
+                </div>
+              `;
+
+              const scroll = document.createElement('div');
+              scroll.className = 'overflow-x-auto';
+              scroll.appendChild(buildSingleMatrixTable('batch', b, isSpacious));
+              card.appendChild(scroll);
+              wrapper.appendChild(card);
+            });
+
+            return wrapper;
+          }
+
+          return buildSingleMatrixTable(mode, state.selectedEntity, isSpacious);
+        }
+
+        function renderTimetableMatrix() {
+          const selected = state.algorithmResults[state.selectedAlgorithm];
+          if (!selected || !selected.complete || !selected.valid || !selected.assignment) {
+            const message = !selected
+              ? `No ${state.selectedAlgorithm} timetable generated yet. Run ${state.selectedAlgorithm} to generate one.`
+              : `The ${state.selectedAlgorithm} run did not produce a complete valid timetable (${selected.status}${selected.reason ? `: ${selected.reason}` : ''}).`;
+            [dom.timetableMatrixWrapper, dom.fullTimetableMatrixWrapper].filter(Boolean).forEach(wrapper => {
+              wrapper.innerHTML = `<div class="p-6 text-center text-zinc-400 font-mono text-sm">${escapeHtml(message)}</div>`;
+            });
+            return;
+          }
+          state.solution = selected.assignment;
+          const mode = state.currentViewMode;
+          const entity = state.selectedEntity;
+
+          // Title updates
+          let titleStr = '';
+          let subStr = '';
+          if (mode === 'all') {
+            titleStr = 'All Batches Matrix Grid';
+            subStr = 'Master university timetable displaying all student cohorts and their weekly allocated slots.';
+          } else if (mode === 'batch') {
+            titleStr = `Batch Schedule: ${entity || 'None'}`;
+            subStr = `Displaying weekly slot matrix for academic section ${entity}.`;
+          } else if (mode === 'faculty') {
+            titleStr = `Faculty Schedule: ${entity || 'None'}`;
+            subStr = `Assigned lectures, practicals, and designated rooms for ${entity}.`;
+          } else if (mode === 'room') {
+            const isLab = state.labRooms.map(r => r.toUpperCase()).includes((entity || '').toUpperCase());
+            titleStr = `Room Occupancy: ${entity || 'None'}`;
+            subStr = `${isLab ? 'Lab Facility' : 'Theory Classroom'} utilization matrix across all batches.`;
+          }
+
+          if (dom.currentViewTitle) {
+            dom.currentViewTitle.querySelector('span').textContent = titleStr;
+          }
+          if (dom.currentViewSubtitle) {
+            dom.currentViewSubtitle.textContent = subStr;
+          }
+          if (dom.currentViewTitleFullscreen) {
+            dom.currentViewTitleFullscreen.querySelector('span').textContent = titleStr;
+          }
+          if (dom.currentViewSubtitleFullscreen) {
+            dom.currentViewSubtitleFullscreen.textContent = subStr;
+          }
+
+          // Populate workspace matrix
+          if (dom.timetableMatrixWrapper) {
+            dom.timetableMatrixWrapper.innerHTML = '';
+            dom.timetableMatrixWrapper.appendChild(buildMatrixContainer(false));
+          }
+
+          // Populate dedicated full page matrix
+          if (dom.fullTimetableMatrixWrapper) {
+            dom.fullTimetableMatrixWrapper.innerHTML = '';
+            dom.fullTimetableMatrixWrapper.appendChild(buildMatrixContainer(state.isSpaciousScale));
+          }
+        }
+
+function showStatusBanner(type, message) {
+          const banner = dom.statusBanner;
+          const styles = {
+            success: 'bg-purple-500/10 border-purple-500/30 text-purple-300',
+            warning: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+            error: 'bg-red-500/10 border-red-500/30 text-red-300'
+          };
+          banner.className = `p-3 rounded-lg border text-xs font-mono flex items-center justify-between transition-all ${styles[type] || styles.error}`;
+          dom.statusBannerText.style.whiteSpace = 'pre-line';
+          dom.statusBannerText.textContent = message;
+          const icon = {
+            success: `<svg class="w-4 h-4 text-purple-400 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`,
+            warning: `<svg class="w-4 h-4 text-amber-400 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`,
+            error: `<svg class="w-4 h-4 text-red-400 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+          };
+          dom.statusBannerIcon.innerHTML = icon[type] || icon.error;
+          banner.classList.remove('hidden');
+        }
+
+        // --- 8. ACTION HANDLERS ---
+        const $ = (id) => document.getElementById(id);
+        const splitList = (t) => String(t || '').split(',').map(x => x.trim()).filter(Boolean);
+        const numOr = (el, def, min = -Infinity) => {
+          const v = Number(el.value);
+          return Number.isFinite(v) && v >= min ? v : def;
+        };
+
+        function gridMaxHours() {
+          const d = dom.workingDaysContainer.querySelectorAll('input[type="checkbox"]:checked').length;
+          const s = parseInt(dom.slotsPerDayInput.value, 10) || 0;
+          const m = maxHoursForGrid(d, s);
+          return m > 0 ? m : Infinity;
+        }
+
+        function readConfigurationFromInputs() {
+          const dayCheckboxes = dom.workingDaysContainer.querySelectorAll('input[type="checkbox"]:checked');
+          const days = Array.from(dayCheckboxes).map(cb => cb.value);
+          if (days.length === 0) {
+            alert('Please select at least one working day.');
+            return false;
+          }
+          state.workingDays = days;
+          state.slotsPerDay = parseInt(dom.slotsPerDayInput.value, 10) || 6;
+          state.startTimeHour = parseInt(dom.startTimeSelect.value, 10) || 9;
+          state.slotDurationMinutes = parseInt(dom.slotDurationSelect.value, 10) || 60;
+
+          // Empty room lists are allowed here: the pre-flight check explains it if a needed room type is missing.
+          const tRooms = dom.theoryRoomsInput.value.split(',').map(s => s.trim()).filter(Boolean);
+          const lRooms = dom.labRoomsInput.value.split(',').map(s => s.trim()).filter(Boolean);
+          state.theoryRooms = tRooms;
+          state.labRooms = lRooms;
+          dom.theoryRoomsCount.textContent = `${tRooms.length} rooms`;
+          dom.labRoomsCount.textContent = `${lRooms.length} rooms`;
+          return true;
+        }
+
+        /** Read every input (grid, rooms, soft rules, limits, optimizer) into plain data for the pipeline. */
+        function buildRunInputs() {
+          if (!readConfigurationFromInputs()) return null;
+          const errs = [];
+          const ps = parsePreferredSlotsText($('ps-text').value, state.slotsPerDay);
+          const un = parseUnavailabilityText($('unavail-text').value, state.workingDays, state.slotsPerDay);
+          errs.push(...ps.errors, ...un.errors);
+          if (errs.length) { showStatusBanner('error', errs.join('\n')); return null; }
+          const config = {
+            workingDays: state.workingDays,
+            slotsPerDay: state.slotsPerDay,
+            theoryRooms: state.theoryRooms,
+            labRooms: state.labRooms,
+            unavailable: un.entries,
+            rules: {
+              firstHour: { enabled: $('fh-enabled').checked, weight: numOr($('fh-weight'), 3, 0), batches: splitList($('fh-batches').value) },
+              consecutiveLabs: { enabled: $('cl-enabled').checked, weight: numOr($('cl-weight'), 4, 0), batches: splitList($('cl-batches').value), maxLabsPerDay: Math.floor(numOr($('cl-max'), 0, 0)) },
+              facultyGaps: { enabled: $('fg-enabled').checked, weight: numOr($('fg-weight'), 1, 0) },
+              preferredSlots: { enabled: $('ps-enabled').checked, weight: numOr($('ps-weight'), 2, 0), prefs: ps.prefs }
+            }
+          };
+          const options = {
+            limits: { maxNodes: Math.floor(numOr($('lim-nodes'), DEFAULT_LIMITS.maxNodes, 1)), maxTimeMs: numOr($('lim-ms'), DEFAULT_LIMITS.maxTimeMs, 0), maxQueue: Math.floor(numOr($('lim-bfs-states'), 20000, 1)), mac: $('lim-mac').checked },
+            optimizer: { enabled: $('opt-enabled').checked, seed: Math.floor(numOr($('opt-seed'), DEFAULT_OPTIMIZER.seed)), maxIterations: Math.floor(numOr($('opt-iters'), DEFAULT_OPTIMIZER.maxIterations, 0)), maxTimeMs: numOr($('opt-ms'), DEFAULT_OPTIMIZER.maxTimeMs, 0) }
+          };
+          return { config, options };
+        }
+
+        const STATUS_INFO = {
+          solved: { label: 'Solved', cls: 'text-purple-400', banner: 'success' },
+          proven_unsolvable: { label: 'Proven unsolvable', cls: 'text-red-400', banner: 'error' },
+          aborted_node_limit: { label: 'Aborted · node limit', cls: 'text-amber-400', banner: 'warning' },
+          aborted_time_limit: { label: 'Aborted · time limit', cls: 'text-amber-400', banner: 'warning' },
+          aborted_state_limit: { label: 'Aborted · state limit', cls: 'text-amber-400', banner: 'warning' },
+          invalid_config: { label: 'Invalid configuration', cls: 'text-red-400', banner: 'error' },
+          invalid_input: { label: 'Invalid input', cls: 'text-red-400', banner: 'error' },
+          audit_failed: { label: 'Audit failed', cls: 'text-red-400', banner: 'error' }
+        };
+
+        function fmtSlot(x) { return `${x.day} S${x.slot + 1} ${x.room}`; }
+        function setText(id, text) { $(id).textContent = text; }
+
+        function renderRulesList(config) {
+          try {
+            const ctx = buildContext(config || { workingDays: state.workingDays, slotsPerDay: state.slotsPerDay, theoryRooms: state.theoryRooms, labRooms: state.labRooms }, []);
+            if (!ctx.ok) return;
+            const list = describeRules(buildRules(ctx));
+            const hard = list.filter(r => r.type === 'hard');
+            const soft = list.filter(r => r.type === 'soft');
+            setText('rule-count-label', `${hard.length} hard • ${soft.filter(r => r.enabled).length}/${soft.length} soft active`);
+            $('active-rules-list').innerHTML = list.map(r => `
+              <li class="flex items-start gap-2 ${r.enabled ? '' : 'opacity-50'}">
+                <span class="w-1.5 h-1.5 mt-1 rounded-full ${r.type === 'hard' ? 'bg-purple-400' : 'bg-amber-400'} shrink-0"></span>
+                <span><strong>${escapeHtml(r.id)}</strong> <span class="text-zinc-500">[${r.type}${r.type === 'soft' ? `, w=${r.weight}${r.enabled ? '' : ', off'}` : ''}]</span><br>${escapeHtml(r.description)}</span>
+              </li>`).join('');
+          } catch (e) { /* listing is informational only */ }
+        }
+
+        function renderMetricsAndAudit(res, verify) {
+          const info = STATUS_INFO[res.status] || STATUS_INFO.invalid_input;
+          dom.metricExecTime.textContent = (res.timeMs || 0).toFixed(1);
+          dom.metricNodes.textContent = (res.nodes || 0).toLocaleString();
+          dom.metricBacktracks.textContent = `${(res.backtracks || 0).toLocaleString()} backtracks`;
+          dom.metricConstraints.textContent = info.label;
+          dom.metricConstraints.className = `text-lg font-mono font-medium ${info.cls}`;
+
+          const assigned = res.assignment ? res.assignment.length : 0;
+          const required = res.requiredSessions || 0;
+          dom.metricSlotsAssigned.textContent = assigned;
+          dom.metricSlotsTotal.textContent = `/ ${required}`;
+          const capacity = state.workingDays.length * state.slotsPerDay * (state.theoryRooms.length + state.labRooms.length);
+          dom.metricUtilization.textContent = capacity > 0 ? `${Math.round((assigned / capacity) * 100)}% capacity` : 'n/a';
+
+          if (verify) {
+            dom.metricConflictsDetail.textContent = verify.isValid
+              ? `0 hard violations • soft cost ${res.softAfter.cost}`
+              : `${verify.totalViolations} HARD VIOLATIONS`;
+            dom.auditStatus.textContent = verify.isValid
+              ? `All ${verify.perRule.length} hard constraints verified`
+              : `${verify.perRule.filter(p => p.violations > 0).length} hard constraint(s) VIOLATED`;
+            dom.auditStatus.className = `text-[11px] font-mono font-semibold ${verify.isValid ? 'text-purple-400' : 'text-red-400'}`;
+            const names = { H1_FACULTY_CLASH: '1. Faculty Simultaneous Clashes', H2_ROOM_CLASH: '2. Room Over-subscription', H3_BATCH_CLASH: '3. Batch Double-Booking Overlaps', H4_ROOM_TYPE: '4. Lab/Theory Room Assignment', H5_WEEKLY_HOURS: '5. Exact Weekly Hours per Subject', H6_GRID_AVAILABILITY: '6. Inside Grid & Availability' };
+            dom.auditChecklist.innerHTML = verify.perRule.map(p => `
+              <div class="p-2.5 rounded bg-[#09090b] border ${p.violations ? 'border-red-500/40' : 'border-[#27272a]'} flex flex-col gap-1" title="${escapeHtml(p.details.join('\n'))}">
+                <div class="flex items-center justify-between">
+                  <span class="text-zinc-300">${escapeHtml(names[p.id] || p.id)}</span>
+                  <span class="${p.violations ? 'text-red-400' : 'text-purple-400'} font-medium">${p.violations} violation${p.violations === 1 ? '' : 's'}</span>
+                </div>
+                ${p.details.slice(0, 3).map(d => `<span class="text-[10px] text-red-300">${escapeHtml(d)}</span>`).join('')}
+              </div>`).join('');
+          } else {
+            dom.metricConflictsDetail.textContent = info.label.startsWith('Aborted') ? 'Result unknown' : 'No timetable';
+            dom.auditStatus.textContent = 'No timetable to audit';
+            dom.auditStatus.className = `text-[11px] font-mono font-semibold ${info.cls}`;
+            dom.auditChecklist.innerHTML = '<div class="p-2.5 rounded bg-[#09090b] border border-[#27272a] text-zinc-500 md:col-span-2">Audit runs on a finished timetable. See the diagnosis below.</div>';
+          }
+        }
+
+        function renderReport(res, verify) {
+          const info = STATUS_INFO[res.status] || STATUS_INFO.invalid_input;
+          $('report-panel').classList.remove('hidden');
+          const st = $('report-status');
+          st.textContent = info.label;
+          st.className = `text-[11px] font-mono font-semibold ${info.cls}`;
+          setText('report-reason', res.reason || '');
+
+          // Diagnosis (pre-flight or search)
+          const diag = (res.status === 'solved') ? [] : (res.diagnosis || []);
+          $('report-diagnosis').innerHTML = diag.map(d => `<li class="text-[11px] font-mono text-zinc-300">• ${escapeHtml(d)}</li>`).join('');
+          $('report-diagnosis-wrap').classList.toggle('hidden', diag.length === 0);
+
+          // Search stats
+          const p = res.prune || {};
+          const cells = [
+            ['Nodes', (res.nodes || 0).toLocaleString()], ['Backtracks', (res.backtracks || 0).toLocaleString()],
+            ['Run time', `${(res.timeMs || 0).toFixed(1)} ms`], ['Phase', res.phase || '—'],
+            ['Pruned: unary', (p.unary || 0).toLocaleString()], ['Pruned: symmetry', (p.symmetry || 0).toLocaleString()],
+            ['Pruned: AC-3 root', (p.ac3Root || 0).toLocaleString()], ['Pruned: AC-3 search', (p.ac3Search || 0).toLocaleString()],
+            ['Pruned: fwd-check', (p.forward || 0).toLocaleString()], ['Sessions', `${res.assignment ? res.assignment.length : 0} / ${res.requiredSessions || 0}`]
+          ];
+          $('report-search').innerHTML = cells.map(([k, v]) => `<div class="p-2 rounded bg-[#09090b] border border-[#27272a]"><div class="text-[10px] text-zinc-500 uppercase">${k}</div><div class="text-zinc-100 text-xs">${escapeHtml(String(v))}</div></div>`).join('');
+
+          const solved = !!verify;
+          $('report-solved-wrap').classList.toggle('hidden', !solved);
+          if (!solved) return;
+
+          // Constraint satisfaction summary
+          const sm = res.summary, sb = res.summaryBefore;
+          setText('report-constraint-summary',
+            `Hard: ${sm.hard.satisfied}/${sm.hard.rules} rules satisfied (${sm.hard.percent}%), ${sm.hard.violations} violations.   ` +
+            `Soft: ${sm.soft.satisfied}/${sm.soft.rules} active rules at zero (${sm.soft.percent}%; before optimization ${sb.soft.satisfied}/${sb.soft.rules} = ${sb.soft.percent}%), ${sm.soft.violations} violation units.`);
+          setText('report-hard-before-after', `Hard conflicts before optimization: ${res.auditBefore.totalViolations} • after: ${verify.totalViolations}`);
+
+          // Hours audit
+          const bad = verify.hours.filter(h => !h.ok);
+          setText('report-hours-summary', `${verify.hours.length - bad.length} / ${verify.hours.length} (batch, subject) pairs have exactly their required hours${bad.length ? ` — ${bad.length} MISMATCH` : ''}`);
+          $('report-hours-body').innerHTML = verify.hours.map(h => `<tr class="${h.ok ? '' : 'text-red-400'}"><td class="p-1">${escapeHtml(h.batch)}</td><td class="p-1">${escapeHtml(h.subject)}${h.isLab ? ' (lab)' : ''}</td><td class="p-1 text-center">${h.required}</td><td class="p-1 text-center">${h.actual}</td><td class="p-1 text-center">${h.ok ? '✓' : '✗'}</td></tr>`).join('');
+
+          // Soft table
+          $('report-soft-body').innerHTML = res.softAfter.perRule.map((a, i) => {
+            const b = res.softBefore.perRule[i];
+            return `<tr class="${a.enabled ? '' : 'opacity-50'}"><td class="p-1" title="${escapeHtml(a.description)}">${escapeHtml(a.id.replace(/^S\d_/, '').replace(/_/g, ' ').toLowerCase())}${a.enabled ? '' : ' (off)'}</td><td class="p-1 text-center">${a.weight}</td><td class="p-1 text-center">${b.violations}</td><td class="p-1 text-center">${a.violations}</td><td class="p-1 text-center">${b.weighted} → ${a.weighted}</td></tr>`;
+          }).join('');
+          setText('report-cost', `Weighted soft cost: ${res.softBefore.cost} before → ${res.softAfter.cost} after optimization`);
+          const gap = res.softAfter.perRule.find(r => r.id === 'S3_MINIMIZE_FACULTY_GAPS');
+          setText('report-gaps', `Total faculty gap-hours: ${res.softBefore.perRule.find(r => r.id === 'S3_MINIMIZE_FACULTY_GAPS').violations} → ${gap.violations}`);
+
+          // Optimizer
+          const o = res.optimizer;
+          setText('report-opt-summary',
+            `${o.note} Net adjustments applied: ${o.adjustmentCount}. Search effort: ${o.iterations.toLocaleString()} iterations, ${o.acceptedMoves} accepted (${o.moves} moves, ${o.swaps} swaps), ${o.infeasibleProposals.toLocaleString()} proposals rejected as hard-infeasible, seed ${o.seed}.${o.reverted ? ' (Output discarded: failed audit.)' : ''}`);
+          $('report-adjust-count').textContent = `${o.adjustmentCount} adjustment${o.adjustmentCount === 1 ? '' : 's'}`;
+          $('report-adjust-list').innerHTML = o.adjustments.length
+            ? o.adjustments.map(a => `<li class="py-0.5">${escapeHtml(a.session)}: <span class="text-zinc-500">${escapeHtml(fmtSlot(a.from))}</span> → <span class="text-purple-300">${escapeHtml(fmtSlot(a.to))}</span></li>`).join('')
+            : '<li class="text-zinc-500">No adjustments were applied.</li>';
+        }
+
+        function renderAlgorithmComparison() {
+          const algorithms = ['CSP', 'DFS', 'BFS'];
+          const rows = [
+            ['Runtime', r => r ? `${Number(r.timeMs || 0).toFixed(2)} ms` : 'Not run'],
+            ['Expanded nodes/states', r => r ? Number(r.nodes || 0).toLocaleString() : 'Not run'],
+            ['Generated states', r => r ? (r.generatedStates == null ? 'N/A' : Number(r.generatedStates).toLocaleString()) : 'Not run'],
+            ['Backtracks', r => r ? (r.backtracks == null ? 'N/A' : Number(r.backtracks).toLocaleString()) : 'Not run'],
+            ['Solution found', r => r ? (r.solutionFound ? 'Yes' : 'No') : 'Not run'],
+            ['Solution complete', r => r ? (r.complete ? 'Yes' : 'No') : 'Not run'],
+            ['Valid solution', r => r ? (r.valid ? 'Yes' : 'No') : 'Not run'],
+            ['Hard-constraint violations', r => r ? (r.hardViolations == null ? 'N/A' : Number(r.hardViolations).toLocaleString()) : 'Not run'],
+            ['Soft penalty', r => r ? (r.softPenalty == null ? 'N/A' : r.softPenalty) : 'Not run'],
+            ['Search status', r => r ? `${r.status}${r.reason ? ` — ${r.reason}` : ''}` : 'Not run'],
+          ];
+          document.getElementById('algorithm-comparison-body').innerHTML = rows.map(([label, value]) => `<tr class="border-b border-[#27272a]/60"><td class="p-1.5 text-zinc-400">${escapeHtml(label)}</td>${algorithms.map(a => { const r = state.algorithmResults[a]; return `<td class="p-1.5">${escapeHtml(String(r && r.inputKey !== state.comparisonInputKey ? `${value(r)} (other input)` : value(r)))}</td>`; }).join('')}</tr>`).join('');
+          const valid = algorithms.map(a => ({ algorithm: a, result: state.algorithmResults[a] })).filter(x => x.result?.inputKey === state.comparisonInputKey && x.result?.complete && x.result?.valid && x.result.hardViolations === 0 && x.result.softPenalty != null);
+          const target = document.getElementById('algorithm-best-result');
+          if (!valid.length) { target.textContent = 'No valid complete result is currently available.'; return; }
+          valid.sort((a, b) => a.result.softPenalty - b.result.softPenalty || a.result.timeMs - b.result.timeMs || a.result.nodes - b.result.nodes);
+          const best = valid[0], tied = valid.filter(x => x.result.softPenalty === best.result.softPenalty && x.result.timeMs === best.result.timeMs && x.result.nodes === best.result.nodes);
+          const names = tied.map(x => x.algorithm).join(', ');
+          const reason = tied.length > 1
+            ? `${names} are tied: soft penalty ${best.result.softPenalty}, runtime ${best.result.timeMs.toFixed(2)} ms, ${best.result.nodes} expanded nodes.`
+            : `${best.algorithm} ranks first among valid complete schedules: soft penalty ${best.result.softPenalty}, runtime ${best.result.timeMs.toFixed(2)} ms, ${best.result.nodes} expanded nodes.`;
+          target.textContent = reason;
+        }
+
+        async function runCSPSolver() {
+          if (state.running) return;
+          if (state.workload.length === 0) {
+            showStatusBanner('error', 'No workload data. Please upload a CSV or load sample data.');
+            return;
+          }
+          const inputs = buildRunInputs();
+          if (!inputs) return;
+          const inputKey = JSON.stringify({ workload: state.workload, config: inputs.config, options: inputs.options });
+          state.comparisonInputKey = inputKey;
+          renderRulesList(inputs.config);
+
+          const btn = dom.btnGenerateSchedule;
+          const origContent = btn.innerHTML;
+          state.running = true;
+          btn.disabled = true;
+          btn.innerHTML = `
+            <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Solving (pre-flight → AC-3 → CSP → optimizer)...</span>`;
+          const algorithm = dom.algorithmChoice.value;
+          let res;
+          try {
+            res = await runScheduler(state.workload, inputs.config, inputs.options, algorithm);
+          } catch (err) {
+            res = { status: 'invalid_input', reason: `Solver error: ${err.message}`, diagnosis: [String(err.message)], nodes: 0, backtracks: 0, timeMs: 0, prune: {}, requiredSessions: 0, assignment: null };
+          }
+          state.running = false;
+          btn.disabled = false;
+          btn.innerHTML = origContent;
+          state.result = res;
+
+          // Independent verification on the main thread: never trust the worker's own audit.
+          let verify = null;
+          const assignmentComplete = !!res.assignment && res.assignment.length === (res.requiredSessions ?? res.assignment.length);
+          if (assignmentComplete) {
+            const ctx = buildContext(inputs.config, state.workload);
+            verify = auditSolution(ctx, buildRules(ctx), res.assignment);
+          }
+          const solved = !!res.assignment && assignmentComplete && verify && verify.isValid && res.status === 'solved';
+          if (assignmentComplete && res.assignment && !solved && res.status === 'solved') res.status = 'audit_failed';
+
+          const complete = assignmentComplete;
+          const softPenalty = res.softAfter?.cost ?? res.softPenalty ?? null;
+          state.algorithmResults[algorithm] = {
+            ...res, algorithm, inputKey, timeMs: Number(res.timeMs || 0), solutionFound: !!res.assignment,
+            complete: complete && res.status === 'solved', valid: !!verify?.isValid && res.status === 'solved',
+            hardViolations: verify?.totalViolations ?? res.hardViolations ?? null,
+            softPenalty, generatedStates: algorithm === 'CSP' ? null : (res.generatedStates ?? null),
+          };
+          if (dom.timetableAlgorithmChoice) dom.timetableAlgorithmChoice.value = algorithm;
+          if (dom.timetableAlgorithmChoiceFullscreen) dom.timetableAlgorithmChoiceFullscreen.value = algorithm;
+          state.selectedAlgorithm = algorithm;
+          state.solution = solved ? res.assignment : null;
+          renderAlgorithmComparison();
+
+          renderMetricsAndAudit(res, verify);
+          if (algorithm === 'CSP') renderReport(res, verify);
+          else $('report-panel').classList.add('hidden');
+          updateEntitySelectorOptions();
+          renderTimetableMatrix();
+
+          const info = STATUS_INFO[res.status] || STATUS_INFO.invalid_input;
+          if (solved) {
+            const o = res.optimizer;
+            showStatusBanner('success', algorithm === 'CSP'
+              ? `Timetable generated and verified: ${res.assignment.length} sessions, ${verify.totalViolations} hard violations, ${res.nodes} search nodes, soft cost ${res.softBefore.cost} → ${res.softAfter.cost} (${o.adjustmentCount} adjustments).`
+              : `${algorithm} generated and verified ${res.assignment.length} sessions, ${verify.totalViolations} hard violations, soft penalty ${softPenalty}.`);
+          } else if (res.status === 'audit_failed') {
+            showStatusBanner('error', `AUDIT FAILED: ${verify ? verify.totalViolations : '?'} hard-constraint violation(s) found. The timetable is not shown.`);
+          } else {
+            const head = { proven_unsolvable: 'No timetable exists', aborted_node_limit: 'Search aborted (inconclusive)', aborted_time_limit: 'Search aborted (inconclusive)', invalid_config: 'Invalid configuration', invalid_input: 'Invalid input' }[res.status] || info.label;
+            showStatusBanner(info.banner, `${head}: ${res.reason}${res.diagnosis && res.diagnosis.length > 1 ? '\n' + res.diagnosis.slice(0, 6).map(d => '• ' + d).join('\n') : ''}`);
+          }
+        }
+
+                function exportScheduleCSV() {
+          if (!state.solution || state.solution.length === 0) {
+            alert('Please generate a schedule first before exporting.');
+            return;
+          }
+
+          const headers = ['Batch', 'Day', 'Slot_Number', 'Time_Slot', 'Subject', 'Faculty_Name', 'Room', 'Is_Lab'];
+          const rows = state.solution.map(item => {
+            const time = getSlotTimeLabel(item.slot, state.startTimeHour);
+            return [
+              csvQuote(item.batch),
+              csvQuote(item.day),
+              item.slot + 1,
+              csvQuote(time),
+              csvQuote(item.subject),
+              csvQuote(item.faculty),
+              csvQuote(item.room),
+              item.isLab ? 'true' : 'false'
+            ].join(',');
+          });
+
+          const csvContent = [headers.join(','), ...rows].join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.setAttribute('href', url);
+          link.setAttribute('download', 'university_timetable_schedule.csv');
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
+        function unparseCSV(workload) {
+          const lines = ['Batch,Subject,Faculty_Name,Is_Lab,Weekly_Hours'];
+          workload.forEach(w => {
+            lines.push([csvField(w.batch), csvField(w.subject), csvField(w.faculty), w.isLab, w.weeklyHours].join(','));
+          });
+          return lines.join('\n');
+        }
+
+        function escapeHtml(str) {
+          if (!str) return '';
+          return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
+        /** Parse + validate CSV text against the current grid. Nothing is loaded if any row is invalid. */
+        function loadWorkloadFromText(text, okMessage) {
+          const { rows, errors } = parseCSV(text, { maxHours: gridMaxHours() });
+          if (errors.length) {
+            const shown = errors.slice(0, 8).map(e => e.message).join('\n');
+            showStatusBanner('error', `CSV rejected — ${errors.length} problem${errors.length === 1 ? '' : 's'}:\n${shown}${errors.length > 8 ? `\n…and ${errors.length - 8} more` : ''}`);
+            return false;
+          }
+          if (rows.length === 0) {
+            showStatusBanner('error', 'No courses found. Expected columns: Batch,Subject,Faculty_Name,Is_Lab,Weekly_Hours');
+            return false;
+          }
+          state.workload = rows;
+          renderWorkloadTable();
+          updateEntitySelectorOptions();
+          renderRulesList();
+          showStatusBanner('success', okMessage(rows));
+          return true;
+        }
+
+        function loadSampleData() {
+          if (loadWorkloadFromText(DEFAULT_CSV, (r) => `Loaded ${r.length} sample course requirements.`)) runCSPSolver();
+        }
+
+        // --- 9. EVENT LISTENERS ---
+
+        // Load sample button
+        dom.btnLoadSample.addEventListener('click', loadSampleData);
+        dom.btnLoadSampleTop.addEventListener('click', loadSampleData);
+
+        // Generate button
+        dom.btnGenerateSchedule.addEventListener('click', runCSPSolver);
+
+        const chooseTimetableAlgorithm = (algorithm) => {
+          state.selectedAlgorithm = algorithm;
+          if (dom.timetableAlgorithmChoice) dom.timetableAlgorithmChoice.value = algorithm;
+          if (dom.timetableAlgorithmChoiceFullscreen) dom.timetableAlgorithmChoiceFullscreen.value = algorithm;
+          state.solution = state.algorithmResults[algorithm]?.complete && state.algorithmResults[algorithm]?.valid ? state.algorithmResults[algorithm].assignment : null;
+          renderTimetableMatrix();
+        };
+        [dom.timetableAlgorithmChoice, dom.timetableAlgorithmChoiceFullscreen].filter(Boolean).forEach(select => select.addEventListener('change', e => chooseTimetableAlgorithm(e.target.value)));
+
+        // Export button
+        dom.btnExportCsv.addEventListener('click', exportScheduleCSV);
+
+        // Print button
+        dom.btnPrint.addEventListener('click', () => window.print());
+
+        // File upload
+        dom.csvFileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            loadWorkloadFromText(event.target.result, (r) => `Loaded ${r.length} course requirements from CSV file.`);
+          };
+          reader.readAsText(file);
+        });
+
+        // Toggle raw editor
+        dom.btnToggleEditor.addEventListener('click', () => {
+          const isHidden = dom.csvEditorContainer.classList.contains('hidden');
+          if (isHidden) {
+            dom.csvEditorContainer.classList.remove('hidden');
+            dom.rawCsvTextarea.value = unparseCSV(state.workload);
+          } else {
+            dom.csvEditorContainer.classList.add('hidden');
+          }
+        });
+
+        // Apply raw CSV
+        dom.btnApplyCsv.addEventListener('click', () => {
+          if (loadWorkloadFromText(dom.rawCsvTextarea.value, (r) => `Updated workload with ${r.length} courses.`)) {
+            dom.csvEditorContainer.classList.add('hidden');
+          }
+        });
+
+        // Navigation: Switch between Generator Studio & Timetable Page
+        if (dom.btnNavWorkspace) {
+          dom.btnNavWorkspace.addEventListener('click', () => setActivePage('workspace'));
+        }
+        if (dom.btnNavTimetable) {
+          dom.btnNavTimetable.addEventListener('click', () => setActivePage('timetable'));
+        }
+        if (dom.btnOpenFullPage) {
+          dom.btnOpenFullPage.addEventListener('click', () => setActivePage('timetable'));
+        }
+        if (dom.btnBackToGenerator) {
+          dom.btnBackToGenerator.addEventListener('click', () => setActivePage('workspace'));
+        }
+
+        // Helper to synchronize tab buttons
+        function syncModeTabs(mode) {
+          [dom.viewModeTabs, dom.viewModeTabsFullscreen].forEach(container => {
+            if (!container) return;
+            container.querySelectorAll('button').forEach(b => {
+              if (b.dataset.mode === mode) {
+                b.className = 'px-2.5 py-1 rounded bg-[#27272a] text-purple-300 font-semibold border border-purple-500/30 transition-colors shadow-sm';
+              } else {
+                b.className = 'px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors border border-transparent';
+              }
+            });
+          });
+        }
+
+        // View mode tabs (Batch / Faculty / Room / All Batches)
+        dom.viewModeTabs.addEventListener('click', (e) => {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          state.currentViewMode = btn.dataset.mode;
+          syncModeTabs(state.currentViewMode);
+          updateEntitySelectorOptions();
+          renderTimetableMatrix();
+        });
+
+        if (dom.viewModeTabsFullscreen) {
+          dom.viewModeTabsFullscreen.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            state.currentViewMode = btn.dataset.mode;
+            syncModeTabs(state.currentViewMode);
+            updateEntitySelectorOptions();
+            renderTimetableMatrix();
+          });
+        }
+
+        // Entity selector change
+        dom.entitySelector.addEventListener('change', (e) => {
+          state.selectedEntity = e.target.value;
+          if (dom.entitySelectorFullscreen) dom.entitySelectorFullscreen.value = e.target.value;
+          renderTimetableMatrix();
+        });
+
+        if (dom.entitySelectorFullscreen) {
+          dom.entitySelectorFullscreen.addEventListener('change', (e) => {
+            state.selectedEntity = e.target.value;
+            if (dom.entitySelector) dom.entitySelector.value = e.target.value;
+            renderTimetableMatrix();
+          });
+        }
+
+        // Search filter input
+        dom.searchFilter.addEventListener('input', (e) => {
+          state.searchQuery = e.target.value;
+          if (dom.searchFilterFullscreen) dom.searchFilterFullscreen.value = e.target.value;
+          renderTimetableMatrix();
+        });
+
+        if (dom.searchFilterFullscreen) {
+          dom.searchFilterFullscreen.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value;
+            if (dom.searchFilter) dom.searchFilter.value = e.target.value;
+            renderTimetableMatrix();
+          });
+        }
+
+        // Box scale controls (Spacious / Fit)
+        if (dom.btnScaleSpacious) {
+          dom.btnScaleSpacious.addEventListener('click', () => {
+            state.isSpaciousScale = true;
+            dom.btnScaleSpacious.className = 'px-2.5 py-1 rounded bg-[#27272a] text-purple-300 font-medium';
+            dom.btnScaleFit.className = 'px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200';
+            renderTimetableMatrix();
+          });
+        }
+        if (dom.btnScaleFit) {
+          dom.btnScaleFit.addEventListener('click', () => {
+            state.isSpaciousScale = false;
+            dom.btnScaleFit.className = 'px-2.5 py-1 rounded bg-[#27272a] text-purple-300 font-medium';
+            dom.btnScaleSpacious.className = 'px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200';
+            renderTimetableMatrix();
+          });
+        }
+
+        // Fullscreen print & export
+        if (dom.btnPrintFullscreen) {
+          dom.btnPrintFullscreen.addEventListener('click', () => window.print());
+        }
+        if (dom.btnExportCsvFullscreen) {
+          dom.btnExportCsvFullscreen.addEventListener('click', exportScheduleCSV);
+        }
+
+        // Expand all grids button: switches through batches or shows full view
+        dom.btnExpandAll.addEventListener('click', () => {
+          const batches = Array.from(new Set(state.workload.map(w => w.batch)));
+          if (batches.length === 0) return;
+          const curIdx = batches.indexOf(state.selectedEntity);
+          const nextIdx = (curIdx + 1) % batches.length;
+          state.currentViewMode = 'batch';
+          state.selectedEntity = batches[nextIdx];
+          syncModeTabs('batch');
+          updateEntitySelectorOptions();
+          renderTimetableMatrix();
+        });
+
+        // Working days & slots real-time inputs
+        dom.workingDaysContainer.addEventListener('change', () => {
+          readConfigurationFromInputs();
+          if (state.solution) renderTimetableMatrix();
+        });
+
+        dom.slotsPerDayInput.addEventListener('change', () => {
+          readConfigurationFromInputs();
+          if (state.solution) renderTimetableMatrix();
+        });
+
+        dom.slotDurationSelect.addEventListener('change', () => {
+          readConfigurationFromInputs();
+          if (state.solution) renderTimetableMatrix();
+        });
+
+        dom.startTimeSelect.addEventListener('change', () => {
+          readConfigurationFromInputs();
+          if (state.solution) renderTimetableMatrix();
+        });
+
+        dom.theoryRoomsInput.addEventListener('input', readConfigurationFromInputs);
+        dom.labRoomsInput.addEventListener('input', readConfigurationFromInputs);
+
+        // --- 10. INITIALIZATION ---
+        renderRulesList();
+        loadSampleData();
+      })();
+    </script>
+  </body>
+</html>

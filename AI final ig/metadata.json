@@ -1,0 +1,6 @@
+{
+  "name": "Academic Scheduling",
+  "description": "A weekly university timetable planner with room, faculty, and cohort conflict checks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
